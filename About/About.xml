@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModMetaData>
+  <name>Rim Smart Framework</name>
+  <author>Tawitsy</author>
+  <packageId>Tawitsy.RimSmartFramework</packageId>
+  <supportedVersions>
+    <li>1.6</li>
+    <li>1.7</li>
+  </supportedVersions>
+  <modDependencies>
+    <li>
+      <packageId>brrainz.harmony</packageId>
+      <displayName>Harmony</displayName>
+      <steamWorkshopUrl>steam://url/CommunityFilePage/2009463077</steamWorkshopUrl>
+      <downloadUrl>https://github.com/pardeike/HarmonyRimWorld/releases/latest</downloadUrl>
+    </li>
+  </modDependencies>
+  <loadAfter>
+    <li>brrainz.harmony</li>
+    <li>Ludeon.RimWorld</li>
+  </loadAfter>
+  <description>[b]Version:[/b] 1.0.0-Beta (Testing Phase)
+[b]Status:[/b] Experimental / Under Active Development for RimWorld 1.6 &amp; 1.7
+
+A lightweight collection of behavioral tweaks to make pawns act with a little more common sense.
+
+Pawns in vanilla RimWorld often make decisions that feel frustrating: stepping right across an aiming shooter's line of fire, continuing to chop trees while being stalked by a bear, or watching a bleeding friend collapse just outside the hospital door. Rim Smart Framework adds practical checks to smooth out these moments without bloating the game or killing your TPS.
+
+[b]Features[/b]
+
+[b]Combat[/b]
+• [b]Friendly Fire &amp; Explosive Safety:[/b] Pawns hold fire or look for a quick sidestep if an ally is directly blocking their shot. Explosive weapons (rockets, grenades) are held if allies, the shooter, or home fuel tanks would be caught in the blast.
+• [b]Tactical Fallback for Ranged:[/b] Snipers and riflemen step back 2–4 tiles toward cover when rushed by melee enemies instead of standing still taking hits.
+• [b]Muzzle Discipline:[/b] Moving pawns avoid stepping directly in front of aiming allies, routing behind them instead.
+• [b]Near-Miss Cover:[/b] Pawns caught in the open try to take nearby cover when fired upon.
+• [b]Combat Extended Compatible:[/b] Full dynamic integration with Combat Extended weapons and firing logic.
+
+[b]Work &amp; Survival[/b]
+• [b]Immediate Bleed-Out Triage:[/b] Pawns with critical bleeding drop routine chores to rush to a hospital bed or perform self-tending before collapsing.
+• [b]Superheated Room Fire Safety:[/b] Firefighters refuse to enter enclosed superheated rooms (>60°C) with bare hands, preventing tragic heatstroke deaths.
+• [b]Sanitation First:[/b] Pawns do a quick cleanup of immediate dirt and blood in kitchens and hospitals before cooking or performing medical operations.
+• [b]Smart Meal Choice (FIFO):[/b] Pawns prefer eating meals that are closer to spoiling first rather than grabbing the freshest batch.
+• [b]Pre-Trip Preparation:[/b] Before setting off on long treks across the map, pawns will take care of hunger or rest if needed.
+• [b]Opportunistic Hauling:[/b] Pawns walking across the base can pick up nearby items that belong near their destination.
+
+[b]Base &amp; Structures[/b]
+• [b]Door Discipline:[/b] Completely blocks item placement and drops on door tiles across the map, keeping security and freezer doors functional.
+• [b]Builder &amp; Deconstruction Safety:[/b] Builders stand on the open side when constructing impassable walls to avoid trapping themselves, and stand outside roof collapse zones when deconstructing pillars or walls.
+• [b]Early Medical Care:[/b] Friends and doctors can help carry severely bleeding or injured colonists to bed before they collapse in the dirt.
+• [b]Bedroom Courtesy:[/b] Pawns avoid taking shortcuts through private bedrooms while the occupant is asleep.
+• [b]Predator Alert:[/b] Colonists notice when a wild predator targets them for hunting, sounding an alarm and retreating toward safety instead of working oblivious.
+
+[b]Performance &amp; Mod Options[/b]
+• 100% event-driven: No heavy per-tick map scans, keeping TPS smooth on RimWorld 1.6.
+• Safe to add to existing saves.
+• Every feature can be individually toggled or customized in Mod Settings to fit your playstyle.
+
+[b]Support[/b]
+If you find this mod helpful and want to support ongoing updates, you can buy me a coffee here:
+☕ https://ko-fi.com/tawitsy
+  </description>
+</ModMetaData>

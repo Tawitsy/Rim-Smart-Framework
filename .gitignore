@@ -1,0 +1,19 @@
+# Build Results
+[Bb]in/
+[Oo]bj/
+*.pdb
+
+# Visual Studio & JetBrains
+.vs/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Logs
+*.log
+
+# OS Generated
+.DS_Store
+Thumbs.db
