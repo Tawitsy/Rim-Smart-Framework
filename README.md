@@ -1,6 +1,6 @@
 # Rim Smart Framework
 
-[![Version](https://img.shields.io/badge/version-1.0.0--Beta%20(Testing)-blue.svg)](https://github.com/Tawitsy/Rim-Smart-Framework/releases)
+[![Version](https://img.shields.io/badge/version-v1.1.0-blue.svg)](https://github.com/Tawitsy/Rim-Smart-Framework/releases)
 [![RimWorld 1.6 & 1.7](https://img.shields.io/badge/RimWorld-1.6%20%7C%201.7-brightgreen.svg)](https://rimworldgame.com/)
 [![Harmony](https://img.shields.io/badge/Dependency-Harmony-blue.svg)](https://github.com/pardeike/HarmonyRimWorld)
 [![Combat Extended](https://img.shields.io/badge/Compatibility-Combat%20Extended-orange.svg)](https://github.com/CombatExtended-Continued/CombatExtended)
@@ -8,7 +8,7 @@
 
 ![Rim Smart Framework Preview](About/Preview.png)
 
-> ⚠️ **Status: Experimental / Testing Phase (Beta v1.0.0)**  
+> ⚠️ **Status: Active Development / Community Playtest (v1.1.0)**  
 > This framework is currently under active development and field testing for **RimWorld 1.6 & 1.7**. While verified against decompiled engine assemblies, edge-case adjustments are ongoing. Feedback, suggestions, and issue reports are warmly welcomed!
 
 A lightweight cognitive framework that brings intuitive common sense, tactical discipline, and collaborative coordination to your colonists in **RimWorld 1.6 & 1.7**.
@@ -37,6 +37,15 @@ A lightweight cognitive framework that brings intuitive common sense, tactical d
 * **Emergency Triage:** Colonists suffering severe blood loss immediately prioritize medical treatment.
 * **Fire Safety:** Colonists refuse to enter superheated inferno rooms without protection.
 * **Predator Alarm:** Colonists retreat and sound an alert when targeted by predators.
+
+---
+
+## Installation
+
+1. Click **Code** -> **Download ZIP** on this repository (or download from [Releases](https://github.com/Tawitsy/Rim-Smart-Framework/releases)).
+2. Extract the folder into your RimWorld `Mods` directory:
+   - `.../Steam/steamapps/common/RimWorld/Mods/Rim Smart Framework`
+3. In RimWorld's Mod list, ensure **Harmony** is loaded first, followed by **Rim Smart Framework**.
 
 ---
 
