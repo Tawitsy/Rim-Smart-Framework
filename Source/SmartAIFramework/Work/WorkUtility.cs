@@ -20,9 +20,9 @@ namespace SmartAIFramework.Work
             if (job.playerForced || pawn.Drafted || !pawn.IsColonist)
                 return false;
 
-            if (SmartAIMod.Settings.selfPreservationMedicalRest &&
-                SurvivalUtility.IsInBleedOutCrisis(pawn, SmartAIMod.Settings.crisisHorizonTicks) &&
-                !IsMedicalOrRestJob(job.def))
+            // Cancelling routine work in a bleed-out crisis only makes sense when there is something better
+            // to do instead; otherwise the pawn would just be bounced between Goto/Wait.
+            if (!IsMedicalOrRestJob(job.def) && TryMakeSelfTriageJob(pawn, out _))
             {
                 return true;
             }
@@ -115,10 +115,13 @@ namespace SmartAIFramework.Work
             return false;
         }
 
+        // Only returns a job that actually helps: self-tending, or lying in a bed where a doctor can tend.
+        // Lying on bare ground is not tendable in vanilla and only made the pawn bob up and down, and a
+        // burning pawn must be left to put itself out (vanilla gives ExtinguishSelf on a 10% think roll).
         public static bool TryMakeSelfTriageJob(Pawn pawn, out Job triageJob)
         {
             triageJob = null;
-            if (!SmartAIMod.Settings.selfPreservationMedicalRest || pawn?.Map == null)
+            if (!SmartAIMod.Settings.selfPreservationMedicalRest || pawn?.Map == null || pawn.IsBurning())
                 return false;
             if (!SurvivalUtility.IsInBleedOutCrisis(pawn, SmartAIMod.Settings.crisisHorizonTicks))
                 return false;
@@ -143,10 +146,7 @@ namespace SmartAIFramework.Work
                 return true;
             }
 
-            triageJob = JobMaker.MakeJob(JobDefOf.LayDown, pawn.Position);
-            triageJob.expiryInterval = 300;
-            triageJob.checkOverrideOnExpire = true;
-            return true;
+            return false;
         }
 
         public static bool IsMedicalOrRestJob(JobDef def)

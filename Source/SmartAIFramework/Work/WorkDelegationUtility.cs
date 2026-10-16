@@ -47,6 +47,11 @@ namespace SmartAIFramework.Work
             if (scanner?.def != null && scanner.def.emergency)
                 return false;
 
+            // Work done to a person (feeding, tending, executing...) cannot be handed to someone "closer":
+            // the closest colonist would be the target itself.
+            if (target is Pawn)
+                return false;
+
             int myDistSq = pawn.Position.DistanceToSquared(target.Position);
             if (myDistSq <= 196)
                 return false;

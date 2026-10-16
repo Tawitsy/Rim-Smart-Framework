@@ -90,7 +90,8 @@ namespace SmartAIFramework.Patches
                 PawnStateTracker.CanActAutonomously(___pawn) &&
                 !WorkUtility.IsMedicalOrRestJob(___pawn.CurJob?.def))
             {
-                if (SurvivalUtility.IsInBleedOutCrisis(___pawn, SmartAIMod.Settings.crisisHorizonTicks))
+                // Interrupt only if the follow-up StartJob will actually swap in a triage job.
+                if (WorkUtility.TryMakeSelfTriageJob(___pawn, out _))
                 {
                     ___pawn.jobs?.EndCurrentJob(JobCondition.InterruptForced);
                 }

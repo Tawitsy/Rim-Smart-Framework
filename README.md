@@ -1,6 +1,6 @@
 # Rim Smart Framework
 
-[![Version](https://img.shields.io/badge/version-v1.1.1--beta-orange.svg)](https://github.com/Tawitsy/Rim-Smart-Framework/releases)
+[![Version](https://img.shields.io/badge/version-v1.1.2--beta-orange.svg)](https://github.com/Tawitsy/Rim-Smart-Framework/releases)
 [![RimWorld 1.6 & 1.7](https://img.shields.io/badge/RimWorld-1.6%20%7C%201.7-brightgreen.svg)](https://rimworldgame.com/)
 [![Harmony](https://img.shields.io/badge/Dependency-Harmony-blue.svg)](https://github.com/pardeike/HarmonyRimWorld)
 [![Combat Extended](https://img.shields.io/badge/Compatibility-Combat%20Extended-orange.svg)](https://github.com/CombatExtended-Continued/CombatExtended)
@@ -8,7 +8,7 @@
 
 ![Rim Smart Framework Preview](About/Preview.png)
 
-> ⚠️ **Status: Early Beta / Unstable (v1.1.1 - กำลังอยู่ช่วงพัฒนาและยังไม่เสถียร)**  
+> ⚠️ **Status: Early Beta / Unstable (v1.1.2 - กำลังอยู่ช่วงพัฒนาและยังไม่เสถียร)**  
 > **(TH)** ตัวม็อดกำลังอยู่ในช่วงทดสอบพัฒนา (Testing Phase) **ยังไม่เสถียร 100%** อาจมีบัคหรือพฤติกรรมที่ไม่คาดคิดเกิดขึ้นได้ หากพบปัญหา บัค หรือมีข้อเสนอแนะ แจ้งได้เลยครับ!  
 > **(EN)** This framework is currently in active beta testing for **RimWorld 1.6 & 1.7**. It is **not yet fully stable** and edge-case behavior is actively being refined. Feedback and issue reports are warmly welcomed!
 
