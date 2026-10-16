@@ -1,4 +1,6 @@
 using HarmonyLib;
+using SmartAIFramework.Data;
+using SmartAIFramework.Patches;
 using UnityEngine;
 using Verse;
 
@@ -13,19 +15,11 @@ namespace SmartAIFramework
         public SmartAIMod(ModContentPack content) : base(content)
         {
             Settings = GetSettings<SmartAISettings>();
+            SmartLog.Initialize(content.RootDir);
 
             var harmony = new Harmony(HarmonyId);
             harmony.PatchAll(typeof(SmartAIMod).Assembly);
-
-            SmartAIFramework.Core.SmartAILog.Initialize(content.RootDir);
-            SmartAIFramework.Patches.VehicleFrameworkCompatPatch.TryApply(harmony);
-            SmartAIFramework.Patches.CombatExtendedCompatPatch.TryApply(harmony);
-
-            var patchedMethods = harmony.GetPatchedMethods();
-            int patchCount = 0;
-            foreach (var _ in patchedMethods) patchCount++;
-
-            SmartAIFramework.Core.SmartAILog.Log("RimSmartFramework", $"Rim Smart Framework initialized successfully with {patchCount} patches.");
+            Compat_CombatExtended.TryApply(harmony);
         }
 
         public override string SettingsCategory() => "Rim Smart Framework";
