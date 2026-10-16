@@ -121,6 +121,10 @@ namespace SmartAIFramework.Work
             if (map == null || pawn.Drafted || !targetThing.Spawned)
                 return false;
 
+            // Work aimed at a person (tending, feeding, rescuing) is the reason to enter the room.
+            if (targetThing is Pawn)
+                return false;
+
             IntVec3 pos = targetThing.Position;
             if (!pos.IsValid || map.roofGrid.RoofAt(pos) == null)
                 return false;

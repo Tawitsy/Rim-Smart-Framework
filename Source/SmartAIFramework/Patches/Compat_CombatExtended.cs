@@ -36,7 +36,7 @@ namespace SmartAIFramework.Patches
                 return true;
 
             __result = false;
-            PawnStateTracker.FlushInterrupts();
+            PawnStateTracker.RequestFlushAfterCast();
             return false;
         }
     }

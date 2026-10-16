@@ -31,6 +31,46 @@ namespace SmartAIFramework.Patches
         [HarmonyPriority(Priority.Low)]
         public static bool Prefix(WorkGiver_Scanner __instance, Pawn pawn, Thing t, bool forced, ref bool __result)
         {
+            return WorkGateFilter.Run(__instance, pawn, t, forced, ref __result);
+        }
+    }
+
+    // Most WorkGivers override HasJobOnThing without calling base, so the base patch above never sees
+    // them. These are the routine (non-emergency) overrides the delegation/suppression logic is meant for.
+    [HarmonyPatch]
+    public static class Patch_WorkGiver_Overrides_HasJobOnThing
+    {
+        private static readonly string[] TargetTypeNames =
+        {
+            "RimWorld.WorkGiver_CleanFilth",
+            "RimWorld.WorkGiver_Repair",
+            "RimWorld.WorkGiver_Deconstruct",
+            "RimWorld.WorkGiver_ConstructDeliverResourcesToFrames",
+            "RimWorld.WorkGiver_ConstructDeliverResourcesToBlueprints",
+        };
+
+        public static IEnumerable<MethodBase> TargetMethods()
+        {
+            for (int i = 0; i < TargetTypeNames.Length; i++)
+            {
+                System.Type type = AccessTools.TypeByName(TargetTypeNames[i]);
+                MethodInfo method = type != null ? AccessTools.DeclaredMethod(type, nameof(WorkGiver_Scanner.HasJobOnThing)) : null;
+                if (method != null)
+                    yield return method;
+            }
+        }
+
+        [HarmonyPriority(Priority.Low)]
+        public static bool Prefix(WorkGiver_Scanner __instance, Pawn pawn, Thing t, bool forced, ref bool __result)
+        {
+            return WorkGateFilter.Run(__instance, pawn, t, forced, ref __result);
+        }
+    }
+
+    internal static class WorkGateFilter
+    {
+        public static bool Run(WorkGiver_Scanner __instance, Pawn pawn, Thing t, bool forced, ref bool __result)
+        {
             if (forced) return true;
 
             if (PawnStateTracker.IsTargetSuppressed(t))
@@ -47,12 +87,16 @@ namespace SmartAIFramework.Patches
 
             if (WorkDelegationUtility.ShouldYieldToCloserColonist(__instance, pawn, t))
             {
+                if (SmartLog.IsEnabled)
+                    SmartLog.Decision("Delegation", pawn, $"yielded {__instance.def?.defName} on {t.LabelShort} to a closer colonist");
                 __result = false;
                 return false;
             }
 
             if (WorkDelegationUtility.ShouldPrioritizeCurrentRoom(__instance, pawn, t))
             {
+                if (SmartLog.IsEnabled)
+                    SmartLog.Decision("Delegation", pawn, $"skipped {t.LabelShort} outside the current dirty room");
                 __result = false;
                 return false;
             }
@@ -99,6 +143,8 @@ namespace SmartAIFramework.Patches
                 if (PawnStateTracker.CanOverrideStartJob(___pawn) &&
                     WorkUtility.TryMakeSelfTriageJob(___pawn, out Job triageJob))
                 {
+                    if (SmartLog.IsEnabled)
+                        SmartLog.Decision("SelfTriage", ___pawn, $"replaced {newJob.def.defName} with {triageJob.def.defName} (bleed-out in {SurvivalUtility.TicksUntilBleedOut(___pawn)} ticks)");
                     newJob = triageJob;
                     return;
                 }
@@ -138,6 +184,9 @@ namespace SmartAIFramework.Patches
 
             if (!PawnStateTracker.CanOverrideStartJob(___pawn))
                 return;
+
+            if (SmartLog.IsEnabled)
+                SmartLog.Decision("HazardJob", ___pawn, $"cancelled {newJob.def.defName} at {newJob.targetA.Cell}");
 
             if (newJob.targetA.Thing != null)
             {

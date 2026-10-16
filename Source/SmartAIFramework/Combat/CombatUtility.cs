@@ -11,6 +11,8 @@ namespace SmartAIFramework.Combat
 {
     public static class CombatUtility
     {
+        private const int PredatorAlertCooldownTicks = 600;
+
         public static bool CanFireSafely(Verb verb)
         {
             if (!SmartAIMod.Settings.combatFiringDiscipline || verb == null)
@@ -38,6 +40,9 @@ namespace SmartAIFramework.Combat
 
             if (!PawnStateTracker.CanAssist(shooter))
                 return true;
+
+            if (SmartLog.IsEnabled)
+                SmartLog.Decision("FiringDiscipline", shooter, $"held fire at {target.Cell} (friendly in line/blast)");
 
             if (PawnStateTracker.CanActAutonomously(shooter))
             {
@@ -222,6 +227,8 @@ namespace SmartAIFramework.Combat
             Map map = pawn?.Map;
             if (map == null || !PawnStateTracker.CanActAutonomously(pawn))
                 return;
+            if (PawnStateTracker.IsProtectedFromInterrupt(pawn, pawn.CurJob))
+                return;
 
             TacticalGrid grid = TacticalGrid.Get(map);
             if (grid == null) return;
@@ -283,6 +290,11 @@ namespace SmartAIFramework.Combat
             if (!SmartAIMod.Settings.combatSmartCover || !PawnStateTracker.CanActAutonomously(victim))
                 return;
 
+            // Fire, falling debris, surgery and self-inflicted damage are not an enemy to take cover from.
+            Thing instigator = dinfo.Instigator;
+            if (instigator == null || instigator == victim || !instigator.HostileTo(victim) || victim.IsBurning())
+                return;
+
             if (now < state.nextCoverEvalTick)
                 return;
 
@@ -338,6 +350,9 @@ namespace SmartAIFramework.Combat
             CombatResponseOption option = CoverFinder.EvaluateBestResponse(pawn, threatPos);
             if (option.target.IsValid && option.netScore > 0f)
             {
+                if (SmartLog.IsEnabled)
+                    SmartLog.Decision("CombatResponse", pawn, $"{option.actionType} via {option.jobDef?.defName} -> {option.target.Cell} (score {option.netScore:F0}, threat {threatPos})");
+
                 PawnStateTracker.QueueTacticalJob(
                     pawn,
                     option.actionType,
@@ -360,8 +375,17 @@ namespace SmartAIFramework.Combat
                     return;
             }
 
+            if (StructureUtility.IsEnclosedHomeRoom(prey.Map, prey.Position))
+                return;
+            if (PawnStateTracker.IsProtectedFromInterrupt(prey, prey.CurJob))
+                return;
+
             PawnTacticalState state = PawnStateTracker.GetOrCreate(prey);
-            state.RecordThreat(predator.Position, 400, PawnStateTracker.Now);
+            int now = PawnStateTracker.Now;
+            if (now < state.nextPredatorAlertTick)
+                return;
+            state.nextPredatorAlertTick = now + PredatorAlertCooldownTicks;
+            state.RecordThreat(predator.Position, 400, now);
 
             GenClamor.DoClamor(prey, 35f, ClamorDefOf.Movement);
 
@@ -372,6 +396,8 @@ namespace SmartAIFramework.Combat
                 retreatJob.expiryInterval = 600;
                 retreatJob.checkOverrideOnExpire = true;
                 prey.jobs?.StartJob(retreatJob, JobCondition.InterruptForced);
+                if (SmartLog.IsEnabled)
+                    SmartLog.Decision("PredatorAlert", prey, $"retreating from {predator.LabelShort} to {spot.cell}");
 
                 Messages.Message(
                     $"{prey.LabelShort} spotted hunting {predator.LabelIndefinite()} and is retreating to safety!",
@@ -420,6 +446,8 @@ namespace SmartAIFramework.Combat
                 dodgeJob.expiryInterval = 90;
                 dodgeJob.checkOverrideOnExpire = true;
                 pawn.jobs?.StartJob(dodgeJob, JobCondition.InterruptForced);
+                if (SmartLog.IsEnabled)
+                    SmartLog.Decision("BlastEvac", pawn, $"leaving blast radius of {epicenter} to {bestCell}");
             }
         }
     }

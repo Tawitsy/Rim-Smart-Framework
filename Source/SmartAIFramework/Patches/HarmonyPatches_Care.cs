@@ -91,9 +91,16 @@ namespace SmartAIFramework.Patches
             {
                 if (!patient.InBed() && pawn.CanReserve(patient, 1, -1, null, forced) && !GenAI.EnemyIsNear(patient, 25f))
                 {
-                    __result = true;
+                    Building_Bed bed = FindBedForEarlyRescue(pawn, patient);
+                    __result = bed != null && patient.CanReserve(bed);
                 }
             }
+        }
+
+        internal static Building_Bed FindBedForEarlyRescue(Pawn rescuer, Pawn patient)
+        {
+            return RestUtility.FindBedFor(patient, rescuer, checkSocialProperness: false,
+                ignoreOtherReservations: false, patient.GuestStatus);
         }
     }
 
@@ -107,10 +114,20 @@ namespace SmartAIFramework.Patches
 
             if (t is Pawn patient && !patient.Downed && ColonistCareUtility.NeedsEarlyRescue(patient))
             {
-                if (__result.def == JobDefOf.Rescue)
+                // Vanilla's Rescue driver fails as soon as the takee is not downed, so a walking patient
+                // has to be carried with TakeToBedToOperate instead.
+                Building_Bed bed = Patch_WorkGiver_RescueDowned_HasJobOnThing.FindBedForEarlyRescue(pawn, patient);
+                if (bed == null)
                 {
-                    __result.def = JobDefOf.TakeToBedToOperate;
+                    __result = null;
+                    return;
                 }
+
+                Job job = JobMaker.MakeJob(JobDefOf.TakeToBedToOperate, patient, bed);
+                job.count = 1;
+                __result = job;
+                if (Data.SmartLog.IsEnabled)
+                    Data.SmartLog.Decision("EarlyRescue", pawn, $"carrying {patient.LabelShort} to {bed.LabelShort} at {bed.Position}");
             }
         }
     }

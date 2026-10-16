@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using RimWorld;
 using SmartAIFramework.Data;
 using Verse;
+using Verse.AI;
 
 namespace SmartAIFramework.Combat
 {
@@ -55,6 +56,17 @@ namespace SmartAIFramework.Combat
             float baseRadius = radius * SmartAIMod.Settings.acousticRadiusMultiplier;
             if (baseRadius <= 0.5f) return;
 
+            // A distress call comes from the hurt colonist, not from the danger. Listeners react to the
+            // attacker nearest the victim; if none is known, the call carries no usable threat position.
+            IntVec3 threatPos = position;
+            if (isDistress)
+            {
+                threatPos = FindNearestColonyThreat(map, position, DistressThreatSearchRadius);
+                if (!threatPos.IsValid) return;
+                if (SmartLog.IsEnabled)
+                    SmartLog.Message("Distress", $"{source.LabelShort} hurt at {position}; nearest attacker at {threatPos}");
+            }
+
             int now = PawnStateTracker.Now;
 
             for (int i = 0; i < colonists.Count; i++)
@@ -80,17 +92,43 @@ namespace SmartAIFramework.Combat
                     continue;
 
                 state.nextClamorEvalTick = now + 90;
-                state.RecordThreat(position, 250, now);
+                state.RecordThreat(threatPos, 250, now);
 
                 if (category == ClamorCategory.Gunfire || category == ClamorCategory.Impact || isDistress)
                 {
-                    CombatUtility.NotifyThreatPerceived(listener, position);
+                    CombatUtility.NotifyThreatPerceived(listener, threatPos);
                 }
                 else if (category == ClamorCategory.Construction && listener.CurJob?.def?.joyKind != null)
                 {
                     listener.jobs?.CheckForJobOverride();
                 }
             }
+        }
+
+        private const float DistressThreatSearchRadius = 30f;
+
+        private static IntVec3 FindNearestColonyThreat(Map map, IntVec3 center, float maxDist)
+        {
+            HashSet<IAttackTarget> hostiles = map.attackTargetsCache?.TargetsHostileToColony;
+            if (hostiles == null || hostiles.Count == 0)
+                return IntVec3.Invalid;
+
+            IntVec3 best = IntVec3.Invalid;
+            float bestDistSq = maxDist * maxDist;
+            foreach (IAttackTarget target in hostiles)
+            {
+                Thing t = target?.Thing;
+                if (t == null || !t.Spawned || target.ThreatDisabled(null))
+                    continue;
+
+                float distSq = t.Position.DistanceToSquared(center);
+                if (distSq < bestDistSq)
+                {
+                    bestDistSq = distSq;
+                    best = t.Position;
+                }
+            }
+            return best;
         }
     }
 }

@@ -26,6 +26,16 @@ namespace SmartAIFramework.Grid
             return false;
         }
 
+        // Someone the shooter must not hit: not hostile, and not a wild animal (a squirrel or a grazing herd
+        // in the line of fire should not stop a hunter or a defender from shooting).
+        // Downed pawns are rarely struck by a passing bullet but are fully exposed to a blast.
+        public static bool IsProtectedBystander(Pawn p, Pawn shooter, bool includeDowned = false)
+        {
+            if ((p.Downed && !includeDowned) || p.HostileTo(shooter))
+                return false;
+            return p.Faction != null || p.RaceProps.Humanlike;
+        }
+
         public static bool HasFriendlyAlongSegment(Map map, Pawn shooter, IntVec3 from, IntVec3 to)
         {
             int x0 = from.x;
@@ -53,7 +63,7 @@ namespace SmartAIFramework.Grid
                         List<Thing> list = thingGrid.ThingsListAtFast(indices.CellToIndex(x0, z0));
                         for (int i = 0; i < list.Count; i++)
                         {
-                            if (list[i] is Pawn p && p != shooter && !p.Downed && !p.HostileTo(shooter))
+                            if (list[i] is Pawn p && p != shooter && IsProtectedBystander(p, shooter))
                                 return true;
                         }
                     }
@@ -98,7 +108,7 @@ namespace SmartAIFramework.Grid
                 for (int j = 0; j < things.Count; j++)
                 {
                     Thing t = things[j];
-                    if (t is Pawn p && !p.Downed && !p.HostileTo(shooter))
+                    if (t is Pawn p && p != shooter && IsProtectedBystander(p, shooter, includeDowned: true))
                         return true;
 
                     if (inHome)

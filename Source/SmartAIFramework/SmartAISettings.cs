@@ -228,7 +228,7 @@ namespace SmartAIFramework
             list.Label("Base & Structures");
             Text.Font = GameFont.Small;
             list.CheckboxLabeled("Door discipline", ref structureDoorDiscipline,
-                "Prevents dropping items on door tiles and closes held-open doors during raids.");
+                "Prevents dropping or storing items on door tiles and keeps idle pawns from loitering in doorways.");
             list.CheckboxLabeled("Builder wall safety", ref structureAntiTrapping,
                 "Builders stand on the open side when constructing impassable walls to avoid trapping themselves.");
             list.Label($"Sound detection range: {acousticRadiusMultiplier:F2}x");

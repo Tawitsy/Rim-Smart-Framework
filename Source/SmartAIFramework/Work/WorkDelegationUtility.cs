@@ -76,7 +76,7 @@ namespace SmartAIFramework.Work
                         return true;
                 }
 
-                if (!IsCapableAndAssigned(other, workType) || !IsAvailableForLocalTask(other, workType))
+                if (!IsCapableAndAssigned(other, workType) || !IsAvailableForLocalTask(other))
                     continue;
 
                 int otherDistSq = other.Position.DistanceToSquared(target.Position);
@@ -141,16 +141,20 @@ namespace SmartAIFramework.Work
             return pawn.workSettings != null && pawn.workSettings.WorkIsActive(workType);
         }
 
-        private static bool IsAvailableForLocalTask(Pawn pawn, WorkTypeDef workType)
+        // Only yield to someone who will actually pick the task up: idle, and scheduled to work right now.
+        // A colonist busy with other work of the same type, or wandering during recreation/sleep hours,
+        // would never take it and the task would starve.
+        private static bool IsAvailableForLocalTask(Pawn pawn)
         {
+            TimeAssignmentDef assignment = pawn.timetable?.CurrentAssignment;
+            if (assignment != null && assignment != TimeAssignmentDefOf.Work && assignment != TimeAssignmentDefOf.Anything)
+                return false;
+
             Job curJob = pawn.CurJob;
             if (curJob == null) return true;
 
             JobDef def = curJob.def;
-            if (def == JobDefOf.Wait_Wander || def == JobDefOf.GotoWander || def == JobDefOf.Wait_MaintainPosture)
-                return true;
-
-            return curJob.workGiverDef?.workType == workType;
+            return def == JobDefOf.Wait_Wander || def == JobDefOf.GotoWander || def == JobDefOf.Wait_MaintainPosture;
         }
     }
 }

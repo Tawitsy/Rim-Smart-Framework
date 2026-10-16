@@ -20,8 +20,17 @@ namespace SmartAIFramework.Patches
                 return true;
 
             __result = false;
-            PawnStateTracker.FlushInterrupts();
+            PawnStateTracker.RequestFlushAfterCast();
             return false;
+        }
+    }
+
+    [HarmonyPatch(typeof(Verb), "TryCastNextBurstShot")]
+    public static class Patch_Verb_TryCastNextBurstShot
+    {
+        public static void Postfix()
+        {
+            PawnStateTracker.FlushIfRequestedAfterCast();
         }
     }
 

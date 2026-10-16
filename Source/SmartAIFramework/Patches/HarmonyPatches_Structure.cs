@@ -109,22 +109,6 @@ namespace SmartAIFramework.Patches
         }
     }
 
-    [HarmonyPatch(typeof(Building_Door), "DoorTryClose")]
-    public static class Patch_Building_Door_DoorTryClose
-    {
-        public static void Prefix(Building_Door __instance, ref bool ___holdOpenInt)
-        {
-            if (___holdOpenInt && !PawnStateTracker.ObserveOnly && SmartAIMod.Settings.structureDoorDiscipline && __instance.Spawned)
-            {
-                Map map = __instance.Map;
-                if (map?.dangerWatcher?.DangerRating == StoryDanger.High && !__instance.BlockedOpenMomentary)
-                {
-                    ___holdOpenInt = false;
-                }
-            }
-        }
-    }
-
     [HarmonyPatch(typeof(RCellFinder), nameof(RCellFinder.TryFindGoodAdjacentSpotToTouch))]
     public static class Patch_RCellFinder_TryFindGoodAdjacentSpotToTouch
     {

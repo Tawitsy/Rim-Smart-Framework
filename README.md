@@ -1,6 +1,6 @@
 # Rim Smart Framework
 
-[![Version](https://img.shields.io/badge/version-v1.1.0-blue.svg)](https://github.com/Tawitsy/Rim-Smart-Framework/releases)
+[![Version](https://img.shields.io/badge/version-v1.1.1--beta-orange.svg)](https://github.com/Tawitsy/Rim-Smart-Framework/releases)
 [![RimWorld 1.6 & 1.7](https://img.shields.io/badge/RimWorld-1.6%20%7C%201.7-brightgreen.svg)](https://rimworldgame.com/)
 [![Harmony](https://img.shields.io/badge/Dependency-Harmony-blue.svg)](https://github.com/pardeike/HarmonyRimWorld)
 [![Combat Extended](https://img.shields.io/badge/Compatibility-Combat%20Extended-orange.svg)](https://github.com/CombatExtended-Continued/CombatExtended)
@@ -8,8 +8,9 @@
 
 ![Rim Smart Framework Preview](About/Preview.png)
 
-> ⚠️ **Status: Active Development / Community Playtest (v1.1.0)**  
-> This framework is currently under active development and field testing for **RimWorld 1.6 & 1.7**. While verified against decompiled engine assemblies, edge-case adjustments are ongoing. Feedback, suggestions, and issue reports are warmly welcomed!
+> ⚠️ **Status: Early Beta / Unstable (v1.1.1 - กำลังอยู่ช่วงพัฒนาและยังไม่เสถียร)**  
+> **(TH)** ตัวม็อดกำลังอยู่ในช่วงทดสอบพัฒนา (Testing Phase) **ยังไม่เสถียร 100%** อาจมีบัคหรือพฤติกรรมที่ไม่คาดคิดเกิดขึ้นได้ หากพบปัญหา บัค หรือมีข้อเสนอแนะ แจ้งได้เลยครับ!  
+> **(EN)** This framework is currently in active beta testing for **RimWorld 1.6 & 1.7**. It is **not yet fully stable** and edge-case behavior is actively being refined. Feedback and issue reports are warmly welcomed!
 
 A lightweight cognitive framework that brings intuitive common sense, tactical discipline, and collaborative coordination to your colonists in **RimWorld 1.6 & 1.7**.
 

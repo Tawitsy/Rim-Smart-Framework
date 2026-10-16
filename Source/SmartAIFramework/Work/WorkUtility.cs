@@ -20,7 +20,8 @@ namespace SmartAIFramework.Work
             if (job.playerForced || pawn.Drafted || !pawn.IsColonist)
                 return false;
 
-            if (SurvivalUtility.IsInBleedOutCrisis(pawn, SmartAIMod.Settings.crisisHorizonTicks) &&
+            if (SmartAIMod.Settings.selfPreservationMedicalRest &&
+                SurvivalUtility.IsInBleedOutCrisis(pawn, SmartAIMod.Settings.crisisHorizonTicks) &&
                 !IsMedicalOrRestJob(job.def))
             {
                 return true;
@@ -153,9 +154,16 @@ namespace SmartAIFramework.Work
             if (def == null) return false;
             return def == JobDefOf.TendPatient || def == JobDefOf.LayDown ||
                    def == JobDefOf.LayDownAwake || def == JobDefOf.LayDownResting ||
-                   def == JobDefOf.GotoSafeTemperature || def == JobDefOf.Flee ||
-                   def == JobDefOf.FleeAndCower || def == JobDefOf.Rescue ||
-                   def == JobDefOf.TakeToBedToOperate;
+                   def == JobDefOf.Rescue || def == JobDefOf.TakeToBedToOperate ||
+                   IsSurvivalCriticalJob(def);
+        }
+
+        // Vanilla's own emergency reactions. The framework must never replace or interrupt these.
+        public static bool IsSurvivalCriticalJob(JobDef def)
+        {
+            if (def == null) return false;
+            return def == JobDefOf.ExtinguishSelf || def == JobDefOf.Flee ||
+                   def == JobDefOf.FleeAndCower || def == JobDefOf.GotoSafeTemperature;
         }
 
         private static bool IsRoutineWork(JobDef def)

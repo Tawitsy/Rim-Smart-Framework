@@ -20,6 +20,13 @@ namespace SmartAIFramework
             var harmony = new Harmony(HarmonyId);
             harmony.PatchAll(typeof(SmartAIMod).Assembly);
             Compat_CombatExtended.TryApply(harmony);
+
+            if (SmartLog.IsEnabled)
+            {
+                int patched = 0;
+                foreach (var _ in harmony.GetPatchedMethods()) patched++;
+                SmartLog.Message("Startup", $"Rim Smart Framework patched {patched} methods.");
+            }
         }
 
         public override string SettingsCategory() => "Rim Smart Framework";

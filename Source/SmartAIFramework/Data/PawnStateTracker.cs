@@ -59,6 +59,7 @@ namespace SmartAIFramework.Data
         public int nextKiteEvalTick;
         public int nextClamorEvalTick;
         public int nextSidestepTick;
+        public int nextPredatorAlertTick;
         public int lastStartJobOverrideTick = -99999;
 
         public PendingJobRequest pendingJob;
@@ -115,6 +116,7 @@ namespace SmartAIFramework.Data
             suppressedTargets.Clear();
             interruptQueue.Clear();
             isFlushing = false;
+            flushAfterCast = false;
             ThingProfileCache.Clear();
             VerbProfileCache.Clear();
             Work.WorkUtility.ClearAll();
@@ -277,6 +279,8 @@ namespace SmartAIFramework.Data
                     Job curJob = p.jobs?.curJob;
                     if (curJob != null && curJob.playerForced)
                         continue;
+                    if (IsProtectedFromInterrupt(p, curJob))
+                        continue;
                     if (curJob != null && curJob.def == state.pendingJob.jobDef && curJob.targetA == state.pendingJob.target)
                         continue;
 
@@ -288,6 +292,29 @@ namespace SmartAIFramework.Data
             {
                 isFlushing = false;
             }
+        }
+
+        // Ending the job of a pawn that is on fire, fleeing, or carrying something (a downed ally,
+        // a haul) does more harm than the tactical move gains: vanilla drops carried things on interrupt.
+        public static bool IsProtectedFromInterrupt(Pawn pawn, Job curJob)
+        {
+            if (pawn.IsBurning() || pawn.carryTracker?.CarriedThing != null)
+                return true;
+            return curJob != null && Work.WorkUtility.IsSurvivalCriticalJob(curJob.def);
+        }
+
+        // Set when a shot is blocked inside TryCastShot. The flush is deferred until the verb has
+        // finished its burst bookkeeping, because vanilla applies Stance_Cooldown after TryCastShot
+        // returns false and that cooldown would otherwise pin the pawn in place.
+        private static bool flushAfterCast;
+
+        public static void RequestFlushAfterCast() => flushAfterCast = true;
+
+        public static void FlushIfRequestedAfterCast()
+        {
+            if (!flushAfterCast) return;
+            flushAfterCast = false;
+            FlushInterrupts();
         }
 
         public static bool TryTakeQueuedJob(Pawn pawn, Job vanillaChoice, out Job replacementJob)
@@ -304,6 +331,12 @@ namespace SmartAIFramework.Data
             }
 
             if (!CanActAutonomously(pawn) || (vanillaChoice != null && vanillaChoice.playerForced))
+            {
+                state.pendingJob = default;
+                return false;
+            }
+
+            if (pawn.IsBurning() || (vanillaChoice != null && Work.WorkUtility.IsSurvivalCriticalJob(vanillaChoice.def)))
             {
                 state.pendingJob = default;
                 return false;
