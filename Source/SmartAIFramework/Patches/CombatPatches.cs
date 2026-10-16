@@ -70,7 +70,7 @@ namespace SmartAIFramework.Patches
             }
 
             if (SmartAIMod.Settings.selfPreservationMedicalRest && SmartAIMod.Settings.emergencyBleedOutInterruption &&
-                ___pawn.IsColonist && !___pawn.Drafted && !Module_CommonSense.IsMedicalOrRestJob(___pawn.CurJob?.def))
+                !ActionGate.ObserveOnly && ___pawn.IsColonist && !___pawn.Drafted && !Module_CommonSense.IsMedicalOrRestJob(___pawn.CurJob?.def))
             {
                 if (DeterministicPredictor.IsInImmediatePhysiologicalCrisis(___pawn, SmartAIMod.Settings.crisisHorizonTicks))
                 {
@@ -93,15 +93,11 @@ namespace SmartAIFramework.Patches
     [HarmonyPatch(typeof(CastPositionFinder), "CastPositionPreference")]
     public static class Patch_CastPositionFinder_CastPositionPreference
     {
-        private static readonly AccessTools.FieldRef<CastPositionRequest> ReqRef =
-            AccessTools.StaticFieldRefAccess<CastPositionRequest>(AccessTools.Field(typeof(CastPositionFinder), "req"));
-
-        public static void Postfix(IntVec3 c, ref float __result)
+        public static void Postfix(IntVec3 c, CastPositionRequest ___req, ref float __result)
         {
-            if (!SmartAIMod.Settings.smartCastPositionPenalties || __result <= 0.001f) return;
+            if (!SmartAIMod.Settings.smartCastPositionPenalties || ActionGate.ObserveOnly || __result <= 0.001f) return;
 
-            CastPositionRequest request = ReqRef();
-            Pawn caster = request.caster;
+            Pawn caster = ___req.caster;
             if (caster == null || caster.Map == null) return;
 
             var grid = TacticalGridMapComponent.For(caster.Map);
@@ -206,7 +202,7 @@ namespace SmartAIFramework.Patches
     {
         public static void Postfix(IAttackTarget target, IAttackTargetSearcher searcher, Verb verb, ref float __result)
         {
-            if (searcher?.Thing?.Faction != Faction.OfPlayer) return;
+            if (ActionGate.ObserveOnly || searcher?.Thing?.Faction != Faction.OfPlayer) return;
             if (!(target?.Thing is Pawn enemy) || enemy.Dead || enemy.Downed) return;
 
             Verb enemyVerb = enemy.TryGetAttackVerb(null, false, false);

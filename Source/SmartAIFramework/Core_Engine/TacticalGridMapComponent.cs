@@ -1,11 +1,12 @@
 using System.Collections.Generic;
 using RimWorld;
+using SmartAIFramework.Core.Knowledge;
 using UnityEngine;
 using Verse;
 
 namespace SmartAIFramework.Core_Engine
 {
-    public class TacticalGridMapComponent : MapComponent
+    public class TacticalGridMapComponent : MapComponent, IReadOnlyTacticalGrid, ITacticalGridWriter
     {
         private short[] friendlyFiringLaneGrid;
         private short[] hostileFiringLaneGrid;

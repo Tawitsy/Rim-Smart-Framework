@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using RimWorld;
+using SmartAIFramework.Core.Decisions;
 using UnityEngine;
 using Verse;
 using Verse.AI;
@@ -10,7 +11,7 @@ namespace SmartAIFramework.Modules
     {
         public static bool ShouldYieldToCloserColonist(WorkGiver_Scanner scanner, Pawn pawn, Thing target)
         {
-            if (!SmartAIMod.Settings.smartTaskDelegation || pawn?.Map == null || target == null)
+            if (!SmartAIMod.Settings.smartTaskDelegation || ActionGate.ObserveOnly || pawn?.Map == null || target == null)
                 return false;
 
             if (!pawn.IsColonist || pawn.Drafted)
@@ -22,7 +23,6 @@ namespace SmartAIFramework.Modules
             WorkTypeDef workType = scanner?.def?.workType;
 
             float myDistSq = pawn.Position.DistanceToSquared(target.Position);
-
             if (myDistSq <= 196f)
                 return false;
 
@@ -51,10 +51,6 @@ namespace SmartAIFramework.Modules
                 {
                     if (other.CanReserveAndReach(target, PathEndMode.Touch, Danger.Some) && IsAvailableForLocalTask(other, workType))
                     {
-                        if (other.CurJob == null || other.CurJob.def == JobDefOf.Wait_Wander || other.CurJob.def == JobDefOf.GotoWander)
-                        {
-                            other.jobs.CheckForJobOverride();
-                        }
                         return true;
                     }
                 }
@@ -63,10 +59,6 @@ namespace SmartAIFramework.Modules
                 {
                     if (other.Position.GetRoom(map) == targetRoom && other.CanReserveAndReach(target, PathEndMode.Touch, Danger.Some) && IsAvailableForLocalTask(other, workType))
                     {
-                        if (other.CurJob == null || other.CurJob.def == JobDefOf.Wait_Wander || other.CurJob.def == JobDefOf.GotoWander)
-                        {
-                            other.jobs.CheckForJobOverride();
-                        }
                         return true;
                     }
                 }
@@ -83,12 +75,9 @@ namespace SmartAIFramework.Modules
             return false;
         }
 
-        private static bool isCheckingRoomWork;
-
         public static bool ShouldPrioritizeCurrentRoom(WorkGiver_Scanner scanner, Pawn pawn, Thing target)
         {
-            if (isCheckingRoomWork) return false;
-            if (!SmartAIMod.Settings.roomCentricWorkFocus || pawn?.Map == null || target == null)
+            if (!SmartAIMod.Settings.roomCentricWorkFocus || ActionGate.ObserveOnly || pawn?.Map == null || target == null)
                 return false;
 
             if (!pawn.IsColonist || pawn.Drafted)
@@ -103,42 +92,15 @@ namespace SmartAIFramework.Modules
                 return false;
 
             Room targetRoom = target.Position.GetRoom(map);
-            if (targetRoom != pawnRoom)
+            if (targetRoom == pawnRoom)
+                return false;
+
+            // Target is outside pawn's current room.
+            // Check if current room has work using existing precomputed stats directly:
+            if (scanner is WorkGiver_CleanFilth)
             {
-                isCheckingRoomWork = true;
-                try
-                {
-                    return HasWorkRemainingInRoom(pawn, pawnRoom, scanner);
-                }
-                finally
-                {
-                    isCheckingRoomWork = false;
-                }
-            }
-
-            return false;
-        }
-
-        private static bool HasWorkRemainingInRoom(Pawn pawn, Room room, WorkGiver_Scanner scanner)
-        {
-            if (room == null || scanner == null) return false;
-
-            var things = room.ContainedAndAdjacentThings;
-            if (things == null) return false;
-
-            int count = things.Count;
-            for (int i = 0; i < count; i++)
-            {
-                Thing t = things[i];
-                if (t != null && !t.Destroyed && !t.IsForbidden(pawn) && t.Position.GetRoom(pawn.Map) == room)
-                {
-                    if (t.Position.DistanceToSquared(pawn.Position) <= 256 &&
-                        scanner.HasJobOnThing(pawn, t, false) &&
-                        pawn.CanReserveAndReach(t, PathEndMode.Touch, Danger.Some))
-                    {
-                        return true;
-                    }
-                }
+                // Instant O(1) precomputed stat! If Cleanliness < 0, the room has filth.
+                return pawnRoom.GetStat(RoomStatDefOf.Cleanliness) < 0f;
             }
 
             return false;
@@ -171,5 +133,9 @@ namespace SmartAIFramework.Modules
 
             return false;
         }
+
+        public static void ClearPawn(int pawnId) { }
+
+        public static void ClearAll() { }
     }
 }

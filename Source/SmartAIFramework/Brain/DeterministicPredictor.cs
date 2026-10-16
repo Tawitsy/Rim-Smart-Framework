@@ -36,7 +36,7 @@ namespace SmartAIFramework.Brain
 
         public static int PredictTimeToImpact(Verb verb, IntVec3 targetCell)
         {
-            if (verb == null) return int.MaxValue;
+            if (verb == null || verb.caster == null) return int.MaxValue;
 
             int warmupLeft = 0;
             if (verb.CasterPawn?.stances?.curStance is Stance_Warmup warmup)
@@ -111,9 +111,13 @@ namespace SmartAIFramework.Brain
 
             if (isRoofed) return hazard;
 
-            if (map.gameConditionManager != null && map.gameConditionManager.ConditionIsActive(GameConditionDefOf.ToxicFallout))
+            if (map.gameConditionManager != null)
             {
-                hazard = Mathf.Max(hazard, 85f);
+                if (map.gameConditionManager.ConditionIsActive(GameConditionDefOf.ToxicFallout) ||
+                    (ModsConfig.BiotechActive && map.gameConditionManager.ConditionIsActive(GameConditionDefOf.NoxiousHaze)))
+                {
+                    hazard = Mathf.Max(hazard, 85f);
+                }
             }
 
             if (jobDef == JobDefOf.Clean && map.weatherManager?.curWeather != null && map.weatherManager.curWeather.rainRate > 0.1f)

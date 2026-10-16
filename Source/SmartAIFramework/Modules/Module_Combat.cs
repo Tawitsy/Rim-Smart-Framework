@@ -105,7 +105,7 @@ namespace SmartAIFramework.Modules
             for (int i = 0; i < 8; i++)
             {
                 IntVec3 c = shooter.Position + GenAdj.AdjacentCells[i];
-                if (!c.InBounds(map) || !c.Standable(map) || c.GetFirstPawn(map) != null) continue;
+                if (!c.InBounds(map) || !c.Standable(map) || c.ContainsTrap(map) || c.GetFirstPawn(map) != null) continue;
                 if (CognitiveBrain.DangerAt(map, c) > CognitiveBrain.DangerAt(map, shooter.Position)) continue;
                 if (!GenSight.LineOfSight(c, targetCell, map, true)) continue;
 
@@ -144,7 +144,7 @@ namespace SmartAIFramework.Modules
             {
                 if (!c.InBounds(map) || !c.Standable(map) || c == shooterPos) continue;
                 if (c.GetFirstPawn(map) != null) continue;
-                if (c.ContainsStaticFire(map) || (grid != null && grid.DangerAt(c) > 25f)) continue;
+                if (c.ContainsStaticFire(map) || c.ContainsTrap(map) || (grid != null && grid.DangerAt(c) > 25f)) continue;
 
                 float distToThreat = c.DistanceTo(threatPos);
 
@@ -187,23 +187,39 @@ namespace SmartAIFramework.Modules
             if (shooter == null || threat == null || !shooter.Spawned || shooter.Dead || shooter.Downed) return;
             if (shooter.equipment?.Primary?.def.IsRangedWeapon != true) return;
 
-            if (shooter.Drafted)
+            bool isDrafted = shooter.Drafted;
+            if (isDrafted)
             {
                 if (!SmartAIMod.Settings.allowDraftedKitingAssist) return;
+                if (!ActionGate.MayAssist(shooter)) return;
                 if (shooter.CurJob != null && shooter.CurJob.playerForced && shooter.CurJob.def == JobDefOf.Goto)
                     return;
             }
-
-            if (!ActionGate.MayActAutonomously(shooter)) return;
+            else
+            {
+                if (!ActionGate.MayActAutonomously(shooter)) return;
+            }
 
             if (TryFindKitingFallbackCell(shooter, threat, out IntVec3 fallbackCell))
             {
-                IntentArbiter.Propose(new Intent(
-                    shooter, IntentKind.Reposition, utility: 80f, urgent: true,
-                    JobDefOf.Goto, fallbackCell, "Module_Combat",
-                    $"Tactical fallback from {threat.LabelShort}",
-                    validForTicks: 60, jobExpiryTicks: 35));
-                IntentArbiter.FlushInterrupts();
+                if (isDrafted)
+                {
+                    Job job = JobMaker.MakeJob(JobDefOf.Goto, fallbackCell);
+                    job.playerForced = false;
+                    job.expiryInterval = 35;
+                    job.checkOverrideOnExpire = true;
+                    shooter.jobs?.StartJob(job, JobCondition.InterruptForced);
+                    DecisionLog.Record(shooter, $"Drafted tactical fallback from {threat.LabelShort}", applied: true);
+                }
+                else
+                {
+                    IntentArbiter.Propose(new Intent(
+                        shooter, IntentKind.Reposition, utility: 80f, urgent: true,
+                        JobDefOf.Goto, fallbackCell, "Module_Combat",
+                        $"Tactical fallback from {threat.LabelShort}",
+                        validForTicks: 60, jobExpiryTicks: 35));
+                    IntentArbiter.FlushInterrupts();
+                }
             }
         }
 
@@ -230,7 +246,7 @@ namespace SmartAIFramework.Modules
             for (int i = 0; i < 8; i++)
             {
                 IntVec3 c = pawn.Position + GenAdj.AdjacentCells[i];
-                if (!c.InBounds(map) || !c.Standable(map) || c.GetDoor(map) != null) continue;
+                if (!c.InBounds(map) || !c.Standable(map) || c.GetDoor(map) != null || c.ContainsTrap(map)) continue;
                 if (grid.FiringLaneAt(c) > 0 || grid.DangerAt(c) > 20f) continue;
 
                 float d = finalDest.IsValid ? c.DistanceTo(finalDest) : 0f;
@@ -321,30 +337,6 @@ namespace SmartAIFramework.Modules
                     best.jobDef, best.target, "TacticalDeliberator", best.reasoning));
                 IntentArbiter.FlushInterrupts();
             }
-        }
-
-        private static bool TryFindNearbyCover(Pawn pawn, IntVec3 threatPos, out IntVec3 bestCover)
-        {
-            bestCover = IntVec3.Invalid;
-            Map map = pawn.Map;
-            float currentCover = CoverUtility.CalculateOverallBlockChance(pawn.Position, threatPos, map);
-            if (currentCover >= 0.4f) return false;
-
-            float bestScore = currentCover;
-            float radius = SmartAIMod.Settings.coverSearchRadius;
-            foreach (IntVec3 c in GenRadial.RadialCellsAround(pawn.Position, radius, false))
-            {
-                if (!c.InBounds(map) || !c.Standable(map) || c.GetFirstPawn(map) != null) continue;
-                if (c.ContainsStaticFire(map) || CognitiveBrain.DangerAt(map, c, pawn) > 20f) continue;
-
-                float block = CoverUtility.CalculateOverallBlockChance(c, threatPos, map);
-                if (block > bestScore + 0.15f && pawn.CanReach(c, PathEndMode.OnCell, Danger.Deadly))
-                {
-                    bestScore = block;
-                    bestCover = c;
-                }
-            }
-            return bestCover.IsValid;
         }
 
         public static void Notify_PredatorHuntingColonist(Pawn predator, Pawn prey)

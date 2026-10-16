@@ -114,6 +114,22 @@ namespace SmartAIFramework.Brain
             if (SmartAIMod.Settings.combatRangedKiting && pawn.equipment?.Primary?.def.IsRangedWeapon == true && distToThreat <= 4.5f)
             {
                 Pawn threatPawn = threatPos.GetFirstPawn(map);
+                if (threatPawn == null)
+                {
+                    for (int i = 0; i < 4; i++)
+                    {
+                        IntVec3 adj = threatPos + GenAdj.CardinalDirections[i];
+                        if (adj.InBounds(map))
+                        {
+                            Pawn p = adj.GetFirstPawn(map);
+                            if (p != null && p.HostileTo(pawn))
+                            {
+                                threatPawn = p;
+                                break;
+                            }
+                        }
+                    }
+                }
                 if (threatPawn != null && Module_Combat.TryFindKitingFallbackCell(pawn, threatPawn, out IntVec3 fallbackCell))
                 {
                     float distGain = fallbackCell.DistanceTo(threatPos) - distToThreat;
@@ -165,7 +181,25 @@ namespace SmartAIFramework.Brain
             foreach (IntVec3 c in GenRadial.RadialCellsAround(pawn.Position, searchRadius, false))
             {
                 if (!c.InBounds(map) || !c.Standable(map) || c.GetFirstPawn(map) != null) continue;
-                if (c.ContainsStaticFire(map) || CognitiveBrain.DangerAt(map, c, pawn) > 20f) continue;
+                if (c.ContainsStaticFire(map) || c.ContainsTrap(map) || CognitiveBrain.DangerAt(map, c, pawn) > 20f) continue;
+
+                bool adjacentVolatileCover = false;
+                for (int i = 0; i < 4; i++)
+                {
+                    IntVec3 adj = c + GenAdj.CardinalDirections[i];
+                    if (!adj.InBounds(map)) continue;
+                    Building edifice = adj.GetEdifice(map);
+                    if (edifice != null)
+                    {
+                        var aff = SemanticAffordanceEngine.Analyze(edifice);
+                        if (edifice.IsBurning() || (aff != null && aff.isExplosive))
+                        {
+                            adjacentVolatileCover = true;
+                            break;
+                        }
+                    }
+                }
+                if (adjacentVolatileCover) continue;
 
                 float block = CoverUtility.CalculateOverallBlockChance(c, threatPos, map);
                 if (block > bestScore + 0.15f && pawn.CanReach(c, PathEndMode.OnCell, Danger.Deadly))

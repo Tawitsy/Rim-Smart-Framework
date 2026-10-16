@@ -2,6 +2,7 @@ using System;
 using HarmonyLib;
 using RimWorld;
 using SmartAIFramework.Brain;
+using SmartAIFramework.Core.Decisions;
 using SmartAIFramework.Modules;
 using Verse;
 using Verse.AI;
@@ -13,7 +14,7 @@ namespace SmartAIFramework.Patches
     {
         public static void Postfix(IntVec3 c, Map map, ref bool __result)
         {
-            if (__result && SmartAIMod.Settings.structureDoorDiscipline && c.GetDoor(map) != null)
+            if (__result && !ActionGate.ObserveOnly && SmartAIMod.Settings.structureDoorDiscipline && c.GetDoor(map) != null)
             {
                 __result = false;
             }
@@ -25,7 +26,7 @@ namespace SmartAIFramework.Patches
     {
         public static void Postfix(IntVec3 c, Map map, ref Thing __result)
         {
-            if (__result == null && SmartAIMod.Settings.structureDoorDiscipline && map != null)
+            if (__result == null && !ActionGate.ObserveOnly && SmartAIMod.Settings.structureDoorDiscipline && map != null)
             {
                 Building_Door door = c.GetDoor(map);
                 if (door != null)
@@ -43,7 +44,7 @@ namespace SmartAIFramework.Patches
     {
         public static void Prefix(Pawn ___pawn, ref IntVec3 dropLoc)
         {
-            if (!SmartAIMod.Settings.structureDoorDiscipline) return;
+            if (!SmartAIMod.Settings.structureDoorDiscipline || ActionGate.ObserveOnly) return;
             Map map = ___pawn?.MapHeld;
             if (map == null || !dropLoc.InBounds(map)) return;
 
@@ -78,7 +79,7 @@ namespace SmartAIFramework.Patches
     {
         public static void Postfix(Pawn pawn, ref IntVec3 __result)
         {
-            if (pawn?.Map == null || !__result.IsValid) return;
+            if (pawn?.Map == null || !__result.IsValid || ActionGate.ObserveOnly) return;
 
             if (SmartAIMod.Settings.structureDoorDiscipline && __result.GetDoor(pawn.Map) != null)
             {
@@ -109,7 +110,7 @@ namespace SmartAIFramework.Patches
     {
         public static void Prefix(Building_Door __instance, ref bool ___holdOpenInt)
         {
-            if (___holdOpenInt && SmartAIMod.Settings.structureDoorDiscipline && __instance.Spawned)
+            if (___holdOpenInt && !ActionGate.ObserveOnly && SmartAIMod.Settings.structureDoorDiscipline && __instance.Spawned)
             {
                 Map map = __instance.Map;
                 if (map != null && map.dangerWatcher.DangerRating == StoryDanger.High)
@@ -128,7 +129,7 @@ namespace SmartAIFramework.Patches
     {
         public static void Postfix(Pawn toucher, Thing touchee, ref IntVec3 result, ref bool __result)
         {
-            if (!SmartAIMod.Settings.structureAntiTrapping || !__result || toucher?.Map == null || touchee == null) return;
+            if (!SmartAIMod.Settings.structureAntiTrapping || ActionGate.ObserveOnly || !__result || toucher?.Map == null || touchee == null) return;
 
             bool isImpassable = false;
             if (touchee is Frame frame && frame.BuildDef != null && frame.BuildDef.passability == Traversability.Impassable)
@@ -147,9 +148,10 @@ namespace SmartAIFramework.Patches
             if (!isImpassable) return;
 
             Map map = toucher.Map;
+            CellRect occupiedRect = touchee.OccupiedRect();
             bool isDeconstructing = toucher.CurJob?.def == JobDefOf.Deconstruct;
             bool isCurrentCellRoofed = map.roofGrid.RoofAt(result) != null;
-            int currentOpenNeighbors = CountOpenCardinalNeighbors(result, map, touchee.Position);
+            int currentOpenNeighbors = CountOpenCardinalNeighbors(result, map, occupiedRect);
 
             if (currentOpenNeighbors <= 1 || (isDeconstructing && isCurrentCellRoofed))
             {
@@ -159,9 +161,13 @@ namespace SmartAIFramework.Patches
 
                 foreach (IntVec3 adj in GenAdj.CellsAdjacent8Way(touchee))
                 {
-                    if (adj != result && adj.InBounds(map) && adj.WalkableBy(map, toucher) && toucher.CanReach(adj, PathEndMode.OnCell, Danger.Some))
+                    if (adj != result && adj.InBounds(map) && adj.WalkableBy(map, toucher) &&
+                        !adj.IsForbidden(toucher) && !adj.ContainsStaticFire(map) && !adj.ContainsTrap(map) &&
+                        map.pawnDestinationReservationManager.CanReserve(adj, toucher) &&
+                        ReachabilityImmediate.CanReachImmediate(adj, touchee, map, PathEndMode.Touch, toucher) &&
+                        toucher.CanReach(adj, PathEndMode.OnCell, Danger.Some))
                     {
-                        int openCount = CountOpenCardinalNeighbors(adj, map, touchee.Position);
+                        int openCount = CountOpenCardinalNeighbors(adj, map, occupiedRect);
                         bool isAdjRoofed = map.roofGrid.RoofAt(adj) != null;
 
                         float score = openCount * 10f;
@@ -186,13 +192,13 @@ namespace SmartAIFramework.Patches
             }
         }
 
-        private static int CountOpenCardinalNeighbors(IntVec3 c, Map map, IntVec3 buildingPos)
+        private static int CountOpenCardinalNeighbors(IntVec3 c, Map map, CellRect buildingRect)
         {
             int count = 0;
             for (int i = 0; i < 4; i++)
             {
                 IntVec3 neighbor = c + GenAdj.CardinalDirections[i];
-                if (neighbor == buildingPos) continue;
+                if (buildingRect.Contains(neighbor)) continue;
                 if (neighbor.InBounds(map) && neighbor.Standable(map))
                 {
                     count++;

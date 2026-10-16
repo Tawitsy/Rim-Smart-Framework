@@ -13,6 +13,10 @@ namespace SmartAIFramework.Core.Knowledge
             instance = this;
             CognitiveBlacklist.Clear();
             Modules.Module_CommonSense.ClearAll();
+            Modules.Module_Delegation.ClearAll();
+            Decisions.IntentArbiter.Clear();
+            Brain.SemanticAffordanceEngine.ClearCache();
+            Core_Engine.ModActionAnalyzer.ClearCache();
         }
 
         private static KnowledgeBase Instance
@@ -55,6 +59,7 @@ namespace SmartAIFramework.Core.Knowledge
         {
             if (pawn == null) return;
             Instance?.memories.Remove(pawn.thingIDNumber);
+            Decisions.IntentArbiter.RemovePawn(pawn);
         }
 
         internal static IEnumerable<PawnMemory> AllMemories =>

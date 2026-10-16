@@ -18,7 +18,7 @@ namespace SmartAIFramework.Core.Decisions
 
         public static bool MayAssist(Pawn pawn)
         {
-            if (ObserveOnly || pawn == null || !pawn.Spawned) return false;
+            if (ObserveOnly || pawn == null || !pawn.Spawned || pawn.Dead) return false;
             return pawn.Faction == Faction.OfPlayer;
         }
 

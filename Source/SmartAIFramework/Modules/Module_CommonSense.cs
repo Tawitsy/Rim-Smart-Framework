@@ -52,6 +52,7 @@ namespace SmartAIFramework.Modules
                 selfCapability = CognitiveBrain.SelfCapability(pawn),
                 efficiency = CognitiveBrain.Efficiency(pawn.Position, t.Cell),
                 danger = CognitiveBrain.DangerAt(pawn.Map, t.Cell, pawn),
+                currentDanger = CognitiveBrain.DangerAt(pawn.Map, pawn.Position, pawn),
                 negativeConsequence = 0f,
             };
 
@@ -62,96 +63,6 @@ namespace SmartAIFramework.Modules
             }
 
             return input.danger >= SmartAIMod.Settings.hazardSensitivity && CognitiveBrain.Evaluate(input) < 0f;
-        }
-
-        private static readonly System.Collections.Generic.Dictionary<int, int> lastSanitationTicks =
-            new System.Collections.Generic.Dictionary<int, int>();
-
-        public static bool TryGetSanitationJob(Pawn pawn, Job workJob, out Job cleanJob)
-        {
-            cleanJob = null;
-            if (!SmartAIMod.Settings.commonSenseSanitation || pawn?.Map == null) return false;
-            if (pawn.WorkTypeIsDisabled(WorkTypeDefOf.Cleaning)) return false;
-            if (workJob == null || !IsSterileSensitiveJob(workJob)) return false;
-
-            if (lastSanitationTicks.TryGetValue(pawn.thingIDNumber, out int lastTick))
-            {
-                if (Find.TickManager.TicksGame - lastTick < 1500)
-                    return false;
-            }
-
-            IntVec3 targetCell = workJob.targetA.Cell;
-            Map map = pawn.Map;
-            Room room = targetCell.GetRoom(map);
-
-            System.Collections.Generic.List<Thing> filthList = null;
-
-            if (room != null && room.ProperRoom && !room.PsychologicallyOutdoors)
-            {
-                float cleanliness = room.GetStat(RoomStatDefOf.Cleanliness);
-                bool isHospital = room.Role == RoomRoleDefOf.Hospital;
-
-                if (cleanliness < 0f || isHospital)
-                {
-                    foreach (Filth f in room.ContainedThings<Filth>())
-                    {
-                        if (f != null && !f.Destroyed && !f.IsForbidden(pawn) && f.Position.DistanceTo(targetCell) <= 3.8f && pawn.CanReserveAndReach(f, PathEndMode.Touch, Danger.Some))
-                        {
-                            if (filthList == null) filthList = new System.Collections.Generic.List<Thing>();
-                            filthList.Add(f);
-                            if (filthList.Count >= 3) break;
-                        }
-                    }
-
-                    filthList?.Sort((a, b) => a.Position.DistanceToSquared(targetCell).CompareTo(b.Position.DistanceToSquared(targetCell)));
-                }
-            }
-            else
-            {
-                for (int i = 0; i < 8; i++)
-                {
-                    IntVec3 c = targetCell + GenAdj.AdjacentCells[i];
-                    if (!c.InBounds(map)) continue;
-                    var things = c.GetThingList(map);
-                    for (int j = 0; j < things.Count; j++)
-                    {
-                        if (things[j] is Filth f && !f.Destroyed && !f.IsForbidden(pawn) && pawn.CanReserveAndReach(f, PathEndMode.Touch, Danger.Some))
-                        {
-                            if (filthList == null) filthList = new System.Collections.Generic.List<Thing>();
-                            filthList.Add(f);
-                        }
-                    }
-                }
-            }
-
-            if (filthList != null && filthList.Count > 0)
-            {
-                lastSanitationTicks[pawn.thingIDNumber] = Find.TickManager.TicksGame;
-                cleanJob = JobMaker.MakeJob(JobDefOf.Clean, filthList[0]);
-                for (int i = 1; i < filthList.Count; i++)
-                {
-                    cleanJob.AddQueuedTarget(TargetIndex.A, filthList[i]);
-                }
-                SmartAIFramework.Core.SmartAILog.Log("SmartAI-Sanitation", $"{pawn.LabelShort} cleaning {filthList.Count} filth in room before {workJob.def.defName}");
-                return true;
-            }
-
-            return false;
-        }
-
-        private static bool IsSterileSensitiveJob(Job job)
-        {
-            if (job == null) return false;
-            if (job.def == JobDefOf.TendPatient) return true;
-            if (job.def == JobDefOf.DoBill)
-            {
-                Thing t = job.targetA.Thing;
-                if (t is Building_WorkTable || t is Building_Bed)
-                {
-                    return true;
-                }
-            }
-            return false;
         }
 
         public static bool IsSuperheatedFireHazard(Pawn pawn, IntVec3 firePos, out string reason)
@@ -223,7 +134,8 @@ namespace SmartAIFramework.Modules
             if (def == null) return false;
             return def == JobDefOf.TendPatient || def == JobDefOf.LayDown ||
                    def == JobDefOf.LayDownAwake || def == JobDefOf.LayDownResting ||
-                   def == JobDefOf.GotoSafeTemperature || def == JobDefOf.Flee || def == JobDefOf.FleeAndCower;
+                   def == JobDefOf.GotoSafeTemperature || def == JobDefOf.Flee || def == JobDefOf.FleeAndCower ||
+                   def == JobDefOf.Rescue || def == JobDefOf.TakeToBedToOperate;
         }
 
         private static bool IsRoutineWork(JobDef def)
@@ -265,6 +177,7 @@ namespace SmartAIFramework.Modules
                 job.def == JobDefOf.LayDownAwake || job.def == JobDefOf.LayDownResting ||
                 job.def == JobDefOf.TendPatient || job.def == JobDefOf.Flee ||
                 job.def == JobDefOf.ExtinguishSelf || job.def == JobDefOf.Rescue ||
+                job.def == JobDefOf.TakeToBedToOperate ||
                 job.def == JobDefOf.DoBill || job.def == JobDefOf.FinishFrame ||
                 job.def == JobDefOf.Research || job.def == JobDefOf.Repair)
                 return false;
@@ -378,14 +291,12 @@ namespace SmartAIFramework.Modules
 
         public static void ClearPawn(int pawnId)
         {
-            lastSanitationTicks.Remove(pawnId);
             lastPreTripTicks.Remove(pawnId);
             lastOpportunisticHaulTicks.Remove(pawnId);
         }
 
         public static void ClearAll()
         {
-            lastSanitationTicks.Clear();
             lastPreTripTicks.Clear();
             lastOpportunisticHaulTicks.Clear();
         }

@@ -89,4 +89,20 @@ namespace SmartAIFramework.Patches
             }
         }
     }
+
+    [HarmonyPatch(typeof(WorkGiver_RescueDowned), nameof(WorkGiver_RescueDowned.JobOnThing))]
+    public static class Patch_WorkGiver_RescueDowned_JobOnThing
+    {
+        public static void Postfix(Pawn pawn, Thing t, bool forced, ref Job __result)
+        {
+            if (__result == null || !SmartAIMod.Settings.buddyEmpathyAssistance) return;
+            if (t is Pawn patient && !patient.Downed && Module_Social.ShouldBeRescuedEarly(patient))
+            {
+                if (__result.def == JobDefOf.Rescue)
+                {
+                    __result.def = JobDefOf.TakeToBedToOperate;
+                }
+            }
+        }
+    }
 }

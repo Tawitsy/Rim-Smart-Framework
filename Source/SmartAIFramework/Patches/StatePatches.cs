@@ -11,6 +11,25 @@ namespace SmartAIFramework.Patches
     [HarmonyPatch(typeof(Pawn_StanceTracker), nameof(Pawn_StanceTracker.SetStance))]
     public static class Patch_StanceTracker_SetStance
     {
+        public static void Prefix(Pawn_StanceTracker __instance, Stance newStance)
+        {
+            Pawn pawn = __instance?.pawn;
+            if (pawn == null) return;
+
+            if (__instance.curStance is Stance_Warmup oldWarmup && oldWarmup != newStance)
+            {
+                if (oldWarmup.focusTarg.Thing is Pawn oldTarget)
+                {
+                    KnowledgeBase.Writer(oldTarget)?.RemoveAimer(pawn);
+                }
+            }
+
+            if (__instance.curStance != newStance)
+            {
+                Core.Signals.SignalBus.Publish(new Core.Signals.StanceChangedSignal(pawn, __instance.curStance, newStance));
+            }
+        }
+
         public static void Postfix(Pawn_StanceTracker __instance, Stance newStance)
         {
             Pawn pawn = __instance.pawn;
@@ -30,8 +49,10 @@ namespace SmartAIFramework.Patches
                 bool hostileToPlayer = pawn.HostileTo(Faction.OfPlayer);
                 grid.RegisterFiringLane(pawn, pawn.Position, warmup.focusTarg.Cell, profile.aoeRadius, hostileToPlayer);
 
-                if (warmup.focusTarg.Thing is Pawn targetPawn)
+                if (warmup.focusTarg.Thing is Pawn targetPawn && pawn.HostileTo(targetPawn))
+                {
                     CognitiveBrain.NotifyTargeted(targetPawn, pawn);
+                }
             }
         }
     }
@@ -64,10 +85,15 @@ namespace SmartAIFramework.Patches
             {
                 TacticalGridMapComponent.For(map)?.ClearActor(thing);
             }
-            if (forget && thing is Pawn p)
+            if (thing is Pawn p)
             {
-                KnowledgeBase.Forget(p);
-                Module_CommonSense.ClearPawn(p.thingIDNumber);
+                Core.Decisions.IntentArbiter.RemovePawn(p);
+                if (forget)
+                {
+                    KnowledgeBase.Forget(p);
+                    Module_CommonSense.ClearPawn(p.thingIDNumber);
+                    Module_Delegation.ClearPawn(p.thingIDNumber);
+                }
             }
         }
     }

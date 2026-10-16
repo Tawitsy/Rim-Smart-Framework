@@ -77,7 +77,8 @@ namespace SmartAIFramework.Patches
                 {
                     if (!(___pawn.Drafted && newJob.playerForced))
                     {
-                        if (Module_CommonSense.TryGetEmergencyLifePreservationJob(___pawn, out Job emergencyJob))
+                        if (Module_CommonSense.TryGetEmergencyLifePreservationJob(___pawn, out Job emergencyJob) &&
+                            ActionGate.ApplyVeto(___pawn, assistLevel: false, $"Emergency life preservation override for {newJob.def.defName}"))
                         {
                             newJob = emergencyJob;
                             return;
@@ -90,6 +91,9 @@ namespace SmartAIFramework.Patches
             {
                 if (Module_CommonSense.IsSuperheatedFireHazard(___pawn, newJob.targetA.Cell, out string fireReason))
                 {
+                    if (!ActionGate.ApplyVeto(___pawn, assistLevel: false, $"Refused BeatFire in superheated room ({fireReason})"))
+                        return;
+
                     if (newJob.targetA.Thing != null)
                     {
                         CognitiveBlacklist.Suppress(newJob.targetA.Thing, 600);
@@ -126,31 +130,15 @@ namespace SmartAIFramework.Patches
                 }
             }
 
-            if (Module_CommonSense.TryGetPreTripPreparationJob(___pawn, newJob, out Job prepJob))
-            {
-                Job originalWork = newJob;
-                newJob = prepJob;
-                ___pawn.jobs.jobQueue.EnqueueFirst(originalWork);
-                return;
-            }
-
-            if (Module_CommonSense.TryGetOpportunisticHaulJob(___pawn, newJob, out Job haulJob))
-            {
-                Job originalWork = newJob;
-                newJob = haulJob;
-                ___pawn.jobs.jobQueue.EnqueueFirst(originalWork);
-                return;
-            }
-
             if (!Module_CommonSense.ShouldRefuseJob(___pawn, newJob)) return;
+
+            if (!ActionGate.ApplyVeto(___pawn, assistLevel: false, $"Refused {newJob.def.defName} in hazard zone"))
+                return;
 
             if (newJob.targetA.Thing != null)
             {
                 CognitiveBlacklist.Suppress(newJob.targetA.Thing, SmartAIMod.Settings.jobSuppressionDurationTicks);
             }
-
-            if (!ActionGate.ApplyVeto(___pawn, assistLevel: false, $"Refused {newJob.def.defName} in hazard zone"))
-                return;
 
             if (Module_CommonSense.TryGetEmergencyLifePreservationJob(___pawn, out Job emergencyJob2))
             {
@@ -171,6 +159,33 @@ namespace SmartAIFramework.Patches
         }
     }
 
+    [HarmonyPatch(typeof(Pawn_JobTracker), nameof(Pawn_JobTracker.TryOpportunisticJob))]
+    public static class Patch_JobTracker_TryOpportunisticJob
+    {
+        public static void Postfix(Pawn ___pawn, Job finalizerJob, Job job, ref Job __result)
+        {
+            if (__result != null || finalizerJob != null || ___pawn == null || job == null) return;
+            if (___pawn.jobs?.jobQueue != null && ___pawn.jobs.jobQueue.Count > 0) return;
+
+            if (Module_CommonSense.TryGetPreTripPreparationJob(___pawn, job, out Job prepJob))
+            {
+                if (ActionGate.ApplyVeto(___pawn, assistLevel: false, $"Pre-trip preparation before {job.def.defName}"))
+                {
+                    __result = prepJob;
+                    return;
+                }
+            }
+
+            if (Module_CommonSense.TryGetOpportunisticHaulJob(___pawn, job, out Job haulJob))
+            {
+                if (ActionGate.ApplyVeto(___pawn, assistLevel: false, $"Opportunistic haul before {job.def.defName}"))
+                {
+                    __result = haulJob;
+                }
+            }
+        }
+    }
+
     [HarmonyPatch]
     public static class Patch_WorkGiver_FightFires_JobOnThing
     {
@@ -182,7 +197,7 @@ namespace SmartAIFramework.Patches
 
         public static void Postfix(Pawn pawn, Thing t, bool forced, ref Job __result)
         {
-            if (__result == null || forced || pawn == null || t == null) return;
+            if (__result == null || forced || pawn == null || t == null || ActionGate.ObserveOnly) return;
             if (Module_CommonSense.IsSuperheatedFireHazard(pawn, t.Position, out _))
             {
                 __result = null;
@@ -195,6 +210,7 @@ namespace SmartAIFramework.Patches
     {
         public static void Postfix(Pawn eater, Thing foodSource, float dist, ref float __result)
         {
+            if (ActionGate.ObserveOnly) return;
             __result += Module_CommonSense.FifoBonus(foodSource);
 
             if (dist > 45f && eater != null && !eater.Drafted)
@@ -209,7 +225,7 @@ namespace SmartAIFramework.Patches
     {
         public static void Postfix(Pawn pawn, Thing ingestible, ref IntVec3 cell, ref bool __result)
         {
-            if (!SmartAIMod.Settings.comfortSeating || pawn?.Map == null) return;
+            if (!SmartAIMod.Settings.comfortSeating || ActionGate.ObserveOnly || pawn?.Map == null) return;
 
             bool sittingOnChair = false;
             if (cell.IsValid)
@@ -227,9 +243,7 @@ namespace SmartAIFramework.Patches
                 {
                     foreach (Building b in currentRoom.ContainedThings<Building>())
                     {
-                        if (b != null && b.def.building != null && b.def.building.isSittable &&
-                            !b.IsForbidden(pawn) && pawn.CanReserve(b) && !b.IsBurning() &&
-                            b.Position.GetDangerFor(pawn, pawn.Map) == Danger.None)
+                        if (IsValidComfortChair(b, pawn))
                         {
                             chair = b;
                             break;
@@ -243,9 +257,7 @@ namespace SmartAIFramework.Patches
                         pawn.Position, pawn.Map,
                         ThingRequest.ForGroup(ThingRequestGroup.BuildingArtificial),
                         PathEndMode.OnCell, TraverseParms.For(pawn), 12f,
-                        t => t.def.building != null && t.def.building.isSittable &&
-                             !t.IsForbidden(pawn) && pawn.CanReserve(t) && !t.IsBurning() &&
-                             t.Position.GetDangerFor(pawn, t.Map) == Danger.None);
+                        t => IsValidComfortChair(t, pawn));
                 }
 
                 if (chair != null && Toils_Ingest.TryFindFreeSittingSpotOnThing(chair, pawn, out IntVec3 chairCell))
@@ -255,6 +267,17 @@ namespace SmartAIFramework.Patches
                 }
             }
         }
+
+        private static bool IsValidComfortChair(Thing t, Pawn pawn)
+        {
+            if (t == null || t.def?.building == null || !t.def.building.isSittable) return false;
+            if (t.Faction != pawn.Faction && pawn.Faction != null && pawn.Faction.IsPlayer) return false;
+            if (t.IsForbidden(pawn) || t.IsBurning() || t.HostileTo(pawn)) return false;
+            if (pawn.IsColonist && t.Position.Fogged(t.Map)) return false;
+            if (!pawn.CanReserve(t) || !t.IsSociallyProper(pawn)) return false;
+            if (t.Position.GetDangerFor(pawn, t.Map) != Danger.None) return false;
+            return Toils_Ingest.TryFindFreeSittingSpotOnThing(t, pawn, out _);
+        }
     }
 
     [HarmonyPatch(typeof(JobDriver_DoBill), "MakeNewToils")]
@@ -262,56 +285,70 @@ namespace SmartAIFramework.Patches
     {
         public static IEnumerable<Toil> Postfix(IEnumerable<Toil> toils, JobDriver_DoBill __instance)
         {
-            if (SmartAIMod.Settings.commonSenseSanitation && __instance != null)
-            {
-                Toil cleanToil = ToilMaker.MakeToil("SmartSanitation");
-                cleanToil.initAction = delegate
-                {
-                    Pawn actor = __instance.pawn;
-                    if (actor == null || actor.WorkTypeIsDisabled(WorkTypeDefOf.Cleaning)) return;
-
-                    Job curJob = __instance.job;
-                    if (curJob == null) return;
-
-                    IntVec3 cell = curJob.targetA.Cell;
-                    Map map = actor.Map;
-                    if (map == null || !cell.InBounds(map)) return;
-
-                    Room room = cell.GetRoom(map);
-                    if (room == null || room.PsychologicallyOutdoors) return;
-
-                    int cleaned = 0;
-                    for (int i = 0; i < 9; i++)
-                    {
-                        IntVec3 c = cell + GenAdj.AdjacentCellsAndInside[i];
-                        if (!c.InBounds(map)) continue;
-                        var thingList = c.GetThingList(map);
-                        for (int j = thingList.Count - 1; j >= 0; j--)
-                        {
-                            if (thingList[j] is Filth filth && !filth.Destroyed && !filth.IsForbidden(actor))
-                            {
-                                filth.ThinFilth();
-                                cleaned++;
-                                if (cleaned >= 2) break;
-                            }
-                        }
-                        if (cleaned >= 2) break;
-                    }
-
-                    if (cleaned > 0)
-                    {
-                        SoundDefOf.Interact_CleanFilth?.PlayOneShot(new TargetInfo(cell, map));
-                        FleckMaker.ThrowDustPuff(cell, map, 0.5f);
-                    }
-                };
-                cleanToil.defaultCompleteMode = ToilCompleteMode.Instant;
-                yield return cleanToil;
-            }
+            bool insertedCleanToil = false;
 
             foreach (Toil t in toils)
             {
+                if (!insertedCleanToil && SmartAIMod.Settings.commonSenseSanitation && __instance != null &&
+                    (t.debugName == "MakeUnfinishedThingIfNeeded" || t.debugName == "DoRecipeWork"))
+                {
+                    insertedCleanToil = true;
+                    yield return CreateWorkbenchCleanToil(__instance);
+                }
+
                 yield return t;
             }
+        }
+
+        private static Toil CreateWorkbenchCleanToil(JobDriver_DoBill driver)
+        {
+            Toil cleanToil = ToilMaker.MakeToil("SmartSanitation");
+            cleanToil.initAction = delegate
+            {
+                if (ActionGate.ObserveOnly) return;
+
+                Pawn actor = driver.pawn;
+                if (actor == null || actor.WorkTypeIsDisabled(WorkTypeDefOf.Cleaning)) return;
+
+                Job curJob = driver.job;
+                if (curJob == null) return;
+
+                IntVec3 cell = curJob.targetA.Cell;
+                Map map = actor.Map;
+                if (map == null || !cell.InBounds(map)) return;
+
+                // Ensure the pawn has physically arrived at the workbench before cleaning around it
+                if (!actor.Position.InHorDistOf(cell, 3.5f)) return;
+
+                Room room = cell.GetRoom(map);
+                if (room == null || room.PsychologicallyOutdoors) return;
+
+                int cleaned = 0;
+                for (int i = 0; i < 9; i++)
+                {
+                    IntVec3 c = cell + GenAdj.AdjacentCellsAndInside[i];
+                    if (!c.InBounds(map)) continue;
+                    var thingList = c.GetThingList(map);
+                    for (int j = thingList.Count - 1; j >= 0; j--)
+                    {
+                        if (thingList[j] is Filth filth && !filth.Destroyed && !filth.IsForbidden(actor))
+                        {
+                            filth.ThinFilth();
+                            cleaned++;
+                            if (cleaned >= 2) break;
+                        }
+                    }
+                    if (cleaned >= 2) break;
+                }
+
+                if (cleaned > 0)
+                {
+                    SoundDefOf.Interact_CleanFilth?.PlayOneShot(new TargetInfo(cell, map));
+                    FleckMaker.ThrowDustPuff(cell, map, 0.5f);
+                }
+            };
+            cleanToil.defaultCompleteMode = ToilCompleteMode.Instant;
+            return cleanToil;
         }
     }
 }

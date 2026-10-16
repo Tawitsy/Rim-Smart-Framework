@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using RimWorld;
 using SmartAIFramework.Brain;
+using SmartAIFramework.Core.Decisions;
 using Verse;
 using Verse.AI;
 
@@ -10,41 +11,35 @@ namespace SmartAIFramework.Modules
     {
         public static bool ShouldBeRescuedEarly(Pawn patient)
         {
-            if (!SmartAIMod.Settings.buddyEmpathyAssistance || patient == null || !patient.Spawned || patient.Dead)
+            if (!SmartAIMod.Settings.buddyEmpathyAssistance || ActionGate.ObserveOnly || patient == null || !patient.Spawned || patient.Dead)
                 return false;
 
             if (patient.Faction != Faction.OfPlayer || patient.InBed() || patient.Drafted)
                 return false;
 
-            if (patient.InMentalState || patient.CurJob?.def == JobDefOf.AttackMelee || patient.CurJob?.def == JobDefOf.AttackStatic)
+            JobDef curDef = patient.CurJob?.def;
+            if (patient.InMentalState || curDef == JobDefOf.AttackMelee || curDef == JobDefOf.AttackStatic ||
+                curDef == JobDefOf.TendPatient || curDef == JobDefOf.ExtinguishSelf)
                 return false;
 
             bool isBleedingCrisis = DeterministicPredictor.IsInImmediatePhysiologicalCrisis(patient, SmartAIMod.Settings.crisisHorizonTicks);
 
-            float movingCap = patient.health.capacities.GetLevel(PawnCapacityDefOf.Moving);
+            float movingCap = patient.health?.capacities?.GetLevel(PawnCapacityDefOf.Moving) ?? 1f;
             bool isCrippled = movingCap < 0.35f;
 
             bool isThermalCrisis = false;
-            var hediffSet = patient.health.hediffSet;
-            var hypothermia = hediffSet.GetFirstHediffOfDef(HediffDefOf.Hypothermia);
-            var heatstroke = hediffSet.GetFirstHediffOfDef(HediffDefOf.Heatstroke);
+            var hediffSet = patient.health?.hediffSet;
+            var hypothermia = hediffSet?.GetFirstHediffOfDef(HediffDefOf.Hypothermia);
+            var heatstroke = hediffSet?.GetFirstHediffOfDef(HediffDefOf.Heatstroke);
             if ((hypothermia != null && hypothermia.Severity > 0.40f) ||
                 (heatstroke != null && heatstroke.Severity > 0.40f))
             {
                 isThermalCrisis = true;
             }
 
-            if (isBleedingCrisis || (isCrippled && isThermalCrisis) || (isCrippled && patient.health.summaryHealth.SummaryHealthPercent < 0.60f))
+            float summaryHealth = patient.health?.summaryHealth?.SummaryHealthPercent ?? 1f;
+            if (isBleedingCrisis || (isCrippled && isThermalCrisis) || (isCrippled && summaryHealth < 0.60f))
             {
-                Job curJob = patient.CurJob;
-                if (curJob != null)
-                {
-                    if (curJob.def == JobDefOf.LayDown || curJob.def == JobDefOf.Goto)
-                    {
-                        Thing targetThing = curJob.targetA.Thing;
-                        if (targetThing is Building_Bed) return true;
-                    }
-                }
                 return true;
             }
 
@@ -94,7 +89,7 @@ namespace SmartAIFramework.Modules
 
         public static bool ShouldAvoidWakingSleeper(Pawn pawn, Thing targetThing)
         {
-            if (!SmartAIMod.Settings.sleepingCourtesy || pawn == null || targetThing == null || pawn.Map == null)
+            if (!SmartAIMod.Settings.sleepingCourtesy || ActionGate.ObserveOnly || pawn == null || targetThing == null || pawn.Map == null)
                 return false;
 
             if (pawn.Drafted) return false;
@@ -106,7 +101,7 @@ namespace SmartAIFramework.Modules
             {
                 JobDef d = curJob.def;
                 if (d == JobDefOf.TendPatient || d == JobDefOf.ExtinguishSelf ||
-                    d == JobDefOf.Rescue || d == JobDefOf.Flee || d == JobDefOf.BeatFire)
+                    d == JobDefOf.Rescue || d == JobDefOf.TakeToBedToOperate || d == JobDefOf.Flee || d == JobDefOf.BeatFire)
                     return false;
             }
 

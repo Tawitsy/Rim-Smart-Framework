@@ -31,6 +31,20 @@ namespace SmartAIFramework.Core.Decisions
             if (intent.urgent && !interruptQueue.Contains(pawn)) interruptQueue.Add(pawn);
         }
 
+        public static void RemovePawn(Pawn pawn)
+        {
+            if (pawn != null)
+            {
+                interruptQueue.Remove(pawn);
+            }
+        }
+
+        public static void Clear()
+        {
+            interruptQueue.Clear();
+            flushing = false;
+        }
+
         public static void FlushInterrupts()
         {
             if (interruptQueue.Count == 0 || flushing) return;
@@ -40,7 +54,7 @@ namespace SmartAIFramework.Core.Decisions
                 for (int i = interruptQueue.Count - 1; i >= 0; i--)
                 {
                     Pawn p = interruptQueue[i];
-                    if (p == null || !p.Spawned) { interruptQueue.RemoveAt(i); continue; }
+                    if (p == null || !p.Spawned || p.Dead || p.Downed) { interruptQueue.RemoveAt(i); continue; }
                     if (p.stances?.stunner?.Stunned == true) continue;
                     if (p.stances?.curStance is Stance_Busy busy && !(busy is Stance_Cooldown)) continue;
 

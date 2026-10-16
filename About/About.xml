@@ -3,6 +3,7 @@
   <name>Rim Smart Framework</name>
   <author>Tawitsy</author>
   <packageId>Tawitsy.RimSmartFramework</packageId>
+  <modVersion>1.1.0</modVersion>
   <supportedVersions>
     <li>1.6</li>
     <li>1.7</li>
@@ -19,8 +20,8 @@
     <li>brrainz.harmony</li>
     <li>Ludeon.RimWorld</li>
   </loadAfter>
-  <description>[b]Version:[/b] 1.0.0-Beta (Testing Phase)
-[b]Status:[/b] Experimental / Under Active Development for RimWorld 1.6 &amp; 1.7
+  <description>[b]Version:[/b] 1.1.0
+[b]Status:[/b] Stable / Active Development for RimWorld 1.6 &amp; 1.7
 
 A lightweight collection of behavioral tweaks to make pawns act with a little more common sense.
 
