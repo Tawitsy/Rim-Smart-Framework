@@ -116,6 +116,7 @@ namespace SmartAIFramework
             Scribe_Values.Look(ref allowDraftedForceFire, "allowDraftedForceFire", true);
             Scribe_Values.Look(ref smartCastPositionPenalties, "smartCastPositionPenalties", true);
             Scribe_Values.Look(ref combatNearMissReaction, "combatNearMissReaction", true);
+            Scribe_Values.Look(ref coverSearchRadius, "coverSearchRadius", 6f);
             Scribe_Values.Look(ref smartTaskDelegation, "smartTaskDelegation", true);
             Scribe_Values.Look(ref localVisualCourtesy, "localVisualCourtesy", true);
             Scribe_Values.Look(ref roomCentricWorkFocus, "roomCentricWorkFocus", true);
