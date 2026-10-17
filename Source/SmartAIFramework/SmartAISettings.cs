@@ -5,6 +5,11 @@ namespace SmartAIFramework
 {
     public class SmartAISettings : ModSettings
     {
+        public bool moduleCombatEnabled = true;
+        public bool moduleSurvivalEnabled = true;
+        public bool moduleWorkEnabled = true;
+        public bool moduleStructureEnabled = true;
+
         public bool combatFiringDiscipline = true;
         public bool combatMuzzleDiscipline = true;
         public bool combatSmartCover = true;
@@ -46,12 +51,15 @@ namespace SmartAIFramework
         public bool observeOnly = false;
         public bool debugLogging = false;
 
-        public string customDonationUrl = "https://ko-fi.com/tawitsy";
         private static Vector2 scrollPosition = Vector2.zero;
 
         public override void ExposeData()
         {
             base.ExposeData();
+            Scribe_Values.Look(ref moduleCombatEnabled, "moduleCombatEnabled", true);
+            Scribe_Values.Look(ref moduleSurvivalEnabled, "moduleSurvivalEnabled", true);
+            Scribe_Values.Look(ref moduleWorkEnabled, "moduleWorkEnabled", true);
+            Scribe_Values.Look(ref moduleStructureEnabled, "moduleStructureEnabled", true);
             Scribe_Values.Look(ref combatFiringDiscipline, "combatFiringDiscipline", true);
             Scribe_Values.Look(ref combatMuzzleDiscipline, "combatMuzzleDiscipline", true);
             Scribe_Values.Look(ref combatSmartCover, "combatSmartCover", true);
@@ -89,13 +97,12 @@ namespace SmartAIFramework
 
             Scribe_Values.Look(ref observeOnly, "observeOnly", false);
             Scribe_Values.Look(ref debugLogging, "debugLogging", false);
-            Scribe_Values.Look(ref customDonationUrl, "customDonationUrl", "https://ko-fi.com/tawitsy");
         }
 
         public void DoWindowContents(Rect inRect)
         {
             Rect outRect = new Rect(inRect.x, inRect.y, inRect.width, inRect.height);
-            Rect viewRect = new Rect(0f, 0f, inRect.width - 24f, 1540f);
+            Rect viewRect = new Rect(0f, 0f, inRect.width - 24f, 1680f);
 
             Widgets.BeginScrollView(outRect, ref scrollPosition, viewRect);
 
@@ -110,43 +117,30 @@ namespace SmartAIFramework
             GUI.color = Color.white;
             list.Gap(4f);
 
-            Rect supportBox = list.GetRect(68f);
+            Rect supportBox = list.GetRect(40f);
             Widgets.DrawMenuSection(supportBox);
-            Rect innerBox = supportBox.ContractedBy(6f);
-
-            Rect titleRect = new Rect(innerBox.x, innerBox.y, innerBox.width, 20f);
-            Widgets.Label(titleRect, "Support the Author:");
-
-            float buttonWidth = (innerBox.width - 16f) / 3f;
-            Rect btnKofi = new Rect(innerBox.x, innerBox.y + 22f, buttonWidth, 28f);
-            Rect btnPatreon = new Rect(innerBox.x + buttonWidth + 8f, innerBox.y + 22f, buttonWidth, 28f);
-            Rect btnCustom = new Rect(innerBox.x + (buttonWidth + 8f) * 2, innerBox.y + 22f, buttonWidth, 28f);
-
-            if (Widgets.ButtonText(btnKofi, "Buy me a Coffee"))
+            Rect btnKofi = supportBox.ContractedBy(6f);
+            if (Widgets.ButtonText(btnKofi, "Support on Ko-fi"))
             {
                 Application.OpenURL("https://ko-fi.com/tawitsy");
             }
             TooltipHandler.TipRegion(btnKofi, "Open Ko-fi to support the author (https://ko-fi.com/tawitsy)");
+            list.GapLine();
 
-            if (Widgets.ButtonText(btnPatreon, "Patreon"))
-            {
-                Application.OpenURL("https://patreon.com");
-            }
-            TooltipHandler.TipRegion(btnPatreon, "Open Patreon for monthly support and updates.");
-
-            string customBtnLabel = string.IsNullOrEmpty(customDonationUrl) || customDonationUrl.Contains("ko-fi.com/tawitsy") ? "Ko-fi Page" : "Custom Link";
-            if (Widgets.ButtonText(btnCustom, customBtnLabel))
-            {
-                if (!string.IsNullOrEmpty(customDonationUrl))
-                {
-                    Application.OpenURL(customDonationUrl);
-                }
-            }
-            TooltipHandler.TipRegion(btnCustom, "Opens your custom configured donation or community URL.");
-
-            list.Gap(6f);
-            list.Label("Custom donation URL:");
-            customDonationUrl = list.TextEntry(customDonationUrl);
+            Text.Font = GameFont.Medium;
+            list.Label("Modules (restart required)");
+            Text.Font = GameFont.Small;
+            GUI.color = new Color(0.85f, 0.85f, 0.85f);
+            list.Label("A disabled module patches nothing. Changes take effect after restarting the game.");
+            GUI.color = Color.white;
+            list.CheckboxLabeled("Combat module", ref moduleCombatEnabled,
+                "Firing discipline, muzzle discipline, cover, kiting, explosive safety, near-miss reactions. Requires a restart.");
+            list.CheckboxLabeled("Survival module", ref moduleSurvivalEnabled,
+                "Early rescue, bleed-out triage, superheated fire safety. Requires a restart.");
+            list.CheckboxLabeled("Work module", ref moduleWorkEnabled,
+                "Work delegation, hazard refusal, food and seating, opportunistic hauling, sanitation. Requires a restart.");
+            list.CheckboxLabeled("Structure module", ref moduleStructureEnabled,
+                "Door discipline, builder wall safety, sleeping courtesy when wandering. Requires a restart.");
             list.GapLine();
 
             Text.Font = GameFont.Medium;
@@ -186,9 +180,9 @@ namespace SmartAIFramework
             list.CheckboxLabeled("Anti-swarming task discipline", ref antiSwarmingRedundancy,
                 "Prevents multiple distant colonists from all rushing towards the exact same small task.");
             list.CheckboxLabeled("Clean work areas first", ref commonSenseSanitation,
-                "Pawns do a quick sweep around cooking tables or medical beds before cooking or operating.");
+                "Before cooking in a kitchen or treating in a hospital, pawns spend a short cleaning pass (a few seconds, based on cleaning speed) on filth next to the bench or bed (skipped when Common Sense already does this).");
             list.CheckboxLabeled("Avoid dangerous work", ref commonSenseHazardJobs,
-                "Pawns refuse non-emergency chores (hauling chunks, cleaning outside) in active hazard or combat zones.");
+                "During a fight or toxic fallout, pawns do not pick non-emergency chores (hauling, cleaning, repairs, construction) located in dangerous spots.");
             list.CheckboxLabeled("Superheated room fire safety", ref superheatedFirefightingSafety,
                 "Pawns refuse to enter enclosed rooms with extreme lethal temperatures (>60 C) to fight fires with bare hands.");
             list.CheckboxLabeled("Weather & hazard protection", ref environmentalHazardProtection,

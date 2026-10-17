@@ -3,7 +3,7 @@
   <name>Rim Smart Framework</name>
   <author>Tawitsy</author>
   <packageId>Tawitsy.RimSmartFramework</packageId>
-  <modVersion>1.1.2</modVersion>
+  <modVersion>1.2.0</modVersion>
   <supportedVersions>
     <li>1.6</li>
     <li>1.7</li>
@@ -20,8 +20,8 @@
     <li>brrainz.harmony</li>
     <li>Ludeon.RimWorld</li>
   </loadAfter>
-  <description>[b]Version:[/b] 1.1.2
-[b]Status:[/b] Early Beta / Testing (ยังไม่เสถียร - Under Active Development for RimWorld 1.6 &amp; 1.7)
+  <description>[b]Version:[/b] 1.2.0
+[b]Status:[/b] Beta - stability release (for RimWorld 1.6 &amp; 1.7)
 
 A lightweight collection of behavioral tweaks to make pawns act with a little more common sense.
 
@@ -33,7 +33,7 @@ Pawns in vanilla RimWorld often make decisions that feel frustrating: stepping r
 • [b]Friendly Fire &amp; Explosive Safety:[/b] Pawns hold fire or look for a quick sidestep if an ally is directly blocking their shot. Explosive weapons (rockets, grenades) are held if allies, the shooter, or home fuel tanks would be caught in the blast.
 • [b]Tactical Fallback for Ranged:[/b] Snipers and riflemen step back 2–4 tiles toward cover when rushed by melee enemies instead of standing still taking hits.
 • [b]Muzzle Discipline:[/b] Moving pawns avoid stepping directly in front of aiming allies, routing behind them instead.
-• [b]Near-Miss Cover:[/b] Pawns caught in the open try to take nearby cover when fired upon.
+• [b]Smart Flee &amp; Cover:[/b] Colonists set to Flee (the default) flee as soon as a shooter can hit them, even from long range, and do not walk back into its reach for work, food or wandering while it keeps shooting. Colonists set to Attack take cover, hold or kite instead.
 • [b]Combat Extended Compatible:[/b] Full dynamic integration with Combat Extended weapons and firing logic.
 
 [b]Work &amp; Survival[/b]
@@ -52,7 +52,10 @@ Pawns in vanilla RimWorld often make decisions that feel frustrating: stepping r
 • [b]Predator Alert:[/b] Colonists notice when a wild predator targets them for hunting, sounding an alarm and retreating toward safety instead of working oblivious.
 
 [b]Performance &amp; Mod Options[/b]
-• 100% event-driven: No heavy per-tick map scans, keeping TPS smooth on RimWorld 1.6.
+• 100% event-driven: no per-tick polling or map scans. Measured with 110 colonists plus a 90-raider raid: about 0.16 ms per tick of mod time during normal work and about 0.3-0.5 ms during the raid.
+• One decision center: every change the mod makes to a pawn's job goes through a single arbiter with a fixed priority order (player orders &gt; game emergencies &gt; survival &gt; basic needs &gt; tactics &gt; routine work), so features never fight each other.
+• Player orders always win; drafted pawns are never overridden.
+• Modules (Combat, Survival, Work, Structure) can be switched off in Mod Settings; a disabled module patches nothing (restart required).
 • Safe to add to existing saves.
 • Every feature can be individually toggled or customized in Mod Settings to fit your playstyle.
 

@@ -1,6 +1,6 @@
 using HarmonyLib;
 using SmartAIFramework.Data;
-using SmartAIFramework.Patches;
+using SmartAIFramework.Modules;
 using UnityEngine;
 using Verse;
 
@@ -11,20 +11,20 @@ namespace SmartAIFramework
         public const string HarmonyId = "Tawitsy.RimSmartFramework";
 
         public static SmartAISettings Settings { get; private set; }
+        public static Harmony Harmony { get; private set; }
 
         public SmartAIMod(ModContentPack content) : base(content)
         {
             Settings = GetSettings<SmartAISettings>();
             SmartLog.Initialize(content.RootDir);
 
-            var harmony = new Harmony(HarmonyId);
-            harmony.PatchAll(typeof(SmartAIMod).Assembly);
-            Compat_CombatExtended.TryApply(harmony);
+            Harmony = new Harmony(HarmonyId);
+            ModuleRegistry.Apply(Harmony, typeof(SmartAIMod).Assembly);
 
             if (SmartLog.IsEnabled)
             {
                 int patched = 0;
-                foreach (var _ in harmony.GetPatchedMethods()) patched++;
+                foreach (var _ in Harmony.GetPatchedMethods()) patched++;
                 SmartLog.Message("Startup", $"Rim Smart Framework patched {patched} methods.");
             }
         }
