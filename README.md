@@ -7,7 +7,7 @@
 [![Wiki & Docs](https://img.shields.io/badge/Docs-GitHub%20Wiki-blueviolet.svg)](https://github.com/Tawitsy/Rim-Smart-Framework/wiki)
 [![Support on Ko-fi](https://img.shields.io/badge/Ko--fi-Support-ff5e5b.svg?logo=kofi&logoColor=white)](https://ko-fi.com/tawitsy)
 
-![Rim Smart Framework Preview](About/Preview.png)
+![Rim Smart Framework Preview](About/Preview.png?v=1.2.0)
 
 > ⚠️ **Status: Beta Testing**  
 > This mod is currently in active beta testing for **RimWorld 1.6 & 1.7**. Edge cases are actively being tested and refined. Please report any bugs or feedback via the [Issues](https://github.com/Tawitsy/Rim-Smart-Framework/issues) tab.
