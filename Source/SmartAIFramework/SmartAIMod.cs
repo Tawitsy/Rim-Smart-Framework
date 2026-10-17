@@ -1,4 +1,5 @@
 using HarmonyLib;
+using SmartAIFramework.Compat;
 using SmartAIFramework.Data;
 using SmartAIFramework.Modules;
 using UnityEngine;
@@ -17,6 +18,8 @@ namespace SmartAIFramework
         {
             Settings = GetSettings<SmartAISettings>();
             SmartLog.Initialize(content.RootDir);
+
+            CompatRegistry.Detect();
 
             Harmony = new Harmony(HarmonyId);
             ModuleRegistry.Apply(Harmony, typeof(SmartAIMod).Assembly);

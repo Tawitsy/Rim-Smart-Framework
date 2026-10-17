@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using RimWorld;
+using SmartAIFramework.Compat;
 using SmartAIFramework.Data;
 using SmartAIFramework.Decisions;
 using SmartAIFramework.Evaluation;
@@ -306,6 +307,8 @@ namespace SmartAIFramework.Work
         public static bool TryMakeOpportunisticHaulJob(Pawn pawn, Job travelJob, out Job haulJob)
         {
             haulJob = null;
+            if (CompatRegistry.YieldOpportunisticHauling)
+                return false;
             if (!SmartAIMod.Settings.opportunisticHaulingOnRoute || pawn?.Map == null || travelJob == null)
                 return false;
             if (!pawn.IsColonist || pawn.Drafted || travelJob.playerForced)

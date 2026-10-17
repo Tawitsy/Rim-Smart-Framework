@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using RimWorld;
+using SmartAIFramework.Compat;
 using UnityEngine;
 using Verse;
 using Verse.AI;
@@ -13,6 +14,7 @@ namespace SmartAIFramework
         public bool moduleWorkEnabled = true;
         public bool moduleStructureEnabled = true;
         public bool moduleMindEnabled = true;
+        public bool compatKeepOwnOnRouteHauling = false;
 
         public bool combatFiringDiscipline = true;
         public bool combatMuzzleDiscipline = true;
@@ -144,6 +146,7 @@ namespace SmartAIFramework
             Scribe_Values.Look(ref acousticRadiusMultiplier, "acousticRadiusMultiplier", 1f);
 
             Scribe_Values.Look(ref moduleMindEnabled, "moduleMindEnabled", true);
+            Scribe_Values.Look(ref compatKeepOwnOnRouteHauling, "compatKeepOwnOnRouteHauling", false);
             Scribe_Values.Look(ref mindTantrumSparesExplosives, "mindTantrumSparesExplosives", true);
             Scribe_Collections.Look(ref disabledMentalBreaks, "disabledMentalBreaks", LookMode.Value);
             if (disabledMentalBreaks == null) disabledMentalBreaks = new HashSet<string>();
@@ -175,6 +178,43 @@ namespace SmartAIFramework
                 return byIntensity != 0 ? byIntensity : string.Compare(a.LabelCap.ToString(), b.LabelCap.ToString(), System.StringComparison.OrdinalIgnoreCase);
             });
             return listedBreaks;
+        }
+
+        private static readonly char Bullet = (char)0x2022;
+        private static readonly char Dash = (char)0x2014;
+
+        private void DoDetectedModsSection(Listing_Standard list)
+        {
+            Text.Font = GameFont.Medium;
+            list.Label("Detected mods");
+            Text.Font = GameFont.Small;
+            List<CompatProfile> detected = CompatRegistry.Detected;
+            if (detected.Count == 0)
+            {
+                GUI.color = new Color(0.85f, 0.85f, 0.85f);
+                list.Label("No other known mods detected.");
+                GUI.color = Color.white;
+                return;
+            }
+
+            for (int i = 0; i < detected.Count; i++)
+            {
+                CompatProfile profile = detected[i];
+                list.Label(Bullet + " " + profile.name + " " + Dash + " " + CompatRegistry.ModeLabel(profile.mode));
+                if (!string.IsNullOrEmpty(profile.note))
+                {
+                    Text.Font = GameFont.Tiny;
+                    GUI.color = new Color(0.7f, 0.7f, 0.7f);
+                    list.Label(profile.note);
+                    GUI.color = Color.white;
+                    Text.Font = GameFont.Small;
+                }
+                if (profile.mode == CompatMode.Yield && profile.keepOwnSetting == CompatRegistry.KeepOwnOnRouteHauling)
+                {
+                    list.CheckboxLabeled("Keep Rim Smart Framework's version instead", ref compatKeepOwnOnRouteHauling,
+                        "Turns on Rim Smart Framework's own on-route hauling even though " + profile.name + " is loaded. Requires a restart.");
+                }
+            }
         }
 
         private void DoMentalBreakList(Listing_Standard list)
@@ -248,6 +288,7 @@ namespace SmartAIFramework
             Widgets.BeginScrollView(outRect, ref scrollPosition, viewRect);
 
             var list = new Listing_Standard();
+            list.maxOneColumn = true;
             list.Begin(viewRect);
 
             Text.Font = GameFont.Medium;
@@ -284,6 +325,9 @@ namespace SmartAIFramework
                 "Door discipline, builder wall safety, sleeping courtesy when wandering. Requires a restart.");
             list.CheckboxLabeled("Mind module", ref moduleMindEnabled,
                 "Tantrums spare explosives, per-break disable list. Requires a restart.");
+            list.GapLine();
+
+            DoDetectedModsSection(list);
             list.GapLine();
 
             Text.Font = GameFont.Medium;

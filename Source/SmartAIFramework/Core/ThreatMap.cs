@@ -130,7 +130,29 @@ namespace SmartAIFramework.Grid
             if (needs == null) return false;
             if (needs.food != null && needs.food.CurCategory >= HungerCategory.UrgentlyHungry)
                 return true;
-            return needs.rest != null && needs.rest.CurCategory == RestCategory.Exhausted;
+            if (needs.rest != null && needs.rest.CurCategory == RestCategory.Exhausted)
+                return true;
+            return CompatRegistry.DubsBadHygieneActive && IsDesperateForHygieneNeed(needs);
+        }
+
+        private static bool hygieneNeedsResolved;
+        private static NeedDef bladderNeed;
+        private static NeedDef thirstNeed;
+
+        private static bool IsDesperateForHygieneNeed(Pawn_NeedsTracker needs)
+        {
+            if (!hygieneNeedsResolved)
+            {
+                hygieneNeedsResolved = true;
+                bladderNeed = DefDatabase<NeedDef>.GetNamedSilentFail("Bladder");
+                thirstNeed = DefDatabase<NeedDef>.GetNamedSilentFail("DBHThirst");
+            }
+            return IsAtOrBelow(needs, bladderNeed) || IsAtOrBelow(needs, thirstNeed);
+        }
+
+        private static bool IsAtOrBelow(Pawn_NeedsTracker needs, NeedDef def)
+        {
+            return def != null && needs.TryGetNeed(def, out Need need) && need.CurLevelPercentage <= 0.1f;
         }
 
         public void Register(Pawn actor, Verb verb, int now)
