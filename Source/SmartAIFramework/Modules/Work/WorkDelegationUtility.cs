@@ -25,9 +25,6 @@ namespace SmartAIFramework.Work
             snapshot.targetedBy.Clear();
         }
 
-        // Work scanning calls the delegation check once per candidate thing, many times per tick. Walking every
-        // colonist on each call scaled as O(things x colonists); this per-tick, per-map snapshot makes each call
-        // a dictionary lookup plus a walk over the (usually few) idle helpers.
         private sealed class ColonySnapshot
         {
             public Map map;
@@ -101,8 +98,6 @@ namespace SmartAIFramework.Work
             if (scanner?.def != null && scanner.def.emergency)
                 return false;
 
-            // Work done to a person (feeding, tending, executing...) cannot be handed to someone "closer":
-            // the closest colonist would be the target itself.
             if (target is Pawn)
                 return false;
 
@@ -218,9 +213,6 @@ namespace SmartAIFramework.Work
             return pawn.workSettings != null && pawn.workSettings.WorkIsActive(workType);
         }
 
-        // Only yield to someone who will actually pick the task up: idle, and scheduled to work right now.
-        // A colonist busy with other work of the same type, or wandering during recreation/sleep hours,
-        // would never take it and the task would starve.
         private static bool IsAvailableForLocalTask(Pawn pawn)
         {
             TimeAssignmentDef assignment = pawn.timetable?.CurrentAssignment;

@@ -6,17 +6,16 @@ using Verse;
 
 namespace SmartAIFramework.Grid
 {
-    // Hostile shooters that can currently hit the colony: where they stood, how far they reach, until when.
-    // Written by sensors (aiming, damage, near misses), read by vanilla's own danger and flee decisions through
-    // the Combat patches. Time is compared lazily when a query arrives; nothing here ticks.
     public sealed class ThreatMap : MapComponent
     {
-        public const int MaxEntries = 64;
-        public const int ExpiryTicks = 600;
-        public const float MinReach = 8f;
-        public const float MaxReach = 40f;
+        public const int MaxEntries = 128;
         private const int MovedCellsSq = 9;
         private const int MaxCachedRegions = 2048;
+
+        public static int ExpiryTicks => SmartAIMod.Settings?.advThreatExpiryTicks ?? SmartAISettings.DefaultThreatExpiryTicks;
+        public static float MinReach => SmartAIMod.Settings?.advThreatMinReach ?? SmartAISettings.DefaultThreatMinReach;
+        public static float MaxReach => SmartAIMod.Settings?.advThreatMaxReach ?? SmartAISettings.DefaultThreatMaxReach;
+        private static int CacheTicks => SmartAIMod.Settings?.advRegionCacheTicks ?? SmartAISettings.DefaultRegionCacheTicks;
 
         private static ThreatMap[] byMapIndex = new ThreatMap[32];
 
@@ -34,11 +33,10 @@ namespace SmartAIFramework.Grid
         private int nextExpiry = int.MaxValue;
         private int version;
 
-        // Region id -> in reach, valid for one version of the entry set.
-        private readonly Dictionary<int, bool> regionCache = new Dictionary<int, bool>(64);
+        private readonly Dictionary<int, bool> regionCache = new Dictionary<int, bool>(MaxCachedRegions + 8);
         private int regionCacheVersion = -1;
+        private int cacheBuiltTick;
 
-        // For fast paths. Expired entries are only dropped inside a query, so this may stay true until the next one.
         public bool AnyActive => count > 0;
         public int Count => count;
         public int Version => version;
@@ -84,7 +82,6 @@ namespace SmartAIFramework.Grid
             return comp;
         }
 
-        // Read-only lookup for fast paths: a map nobody ever registered a threat on has no component to find.
         public static ThreatMap TryGet(Map map)
         {
             if (map == null) return null;
@@ -115,8 +112,6 @@ namespace SmartAIFramework.Grid
                 byMapIndex[idx] = null;
         }
 
-        // The pawns vanilla's flee, danger and work searches may steer for the colony's safety. Drafted pawns, the
-        // player-controlled avatar, mental states and pawns set to Attack or Ignore keep their own rules.
         public static bool IsEligible(Pawn pawn)
         {
             if (pawn == null || !pawn.Spawned || pawn.Drafted || pawn.Faction != Faction.OfPlayer || PawnStateTracker.ObserveOnly)
@@ -124,7 +119,18 @@ namespace SmartAIFramework.Grid
             Pawn_PlayerSettings settings = pawn.playerSettings;
             if (settings == null || !settings.UsesConfigurableHostilityResponse || settings.hostilityResponse != HostilityResponseMode.Flee)
                 return false;
-            return !pawn.InMentalState && !PerspectiveShiftCompat.IsDirectlyControlled(pawn);
+            if (pawn.InMentalState || PerspectiveShiftCompat.IsDirectlyControlled(pawn))
+                return false;
+            return !IsExemptByNeeds(pawn);
+        }
+
+        public static bool IsExemptByNeeds(Pawn pawn)
+        {
+            Pawn_NeedsTracker needs = pawn?.needs;
+            if (needs == null) return false;
+            if (needs.food != null && needs.food.CurCategory >= HungerCategory.UrgentlyHungry)
+                return true;
+            return needs.rest != null && needs.rest.CurCategory == RestCategory.Exhausted;
         }
 
         public void Register(Pawn actor, Verb verb, int now)
@@ -142,13 +148,11 @@ namespace SmartAIFramework.Grid
             for (int i = 0; i < count; i++)
             {
                 if (entries[i].thingId != id) continue;
-                // A shooter that barely moved or changed range does not change any answer: keep the caches.
+
                 if (reach != entries[i].reach || pos.DistanceToSquared(entries[i].origin) >= MovedCellsSq)
-                {
-                    entries[i].origin = pos;
-                    entries[i].reach = reach;
                     version++;
-                }
+                entries[i].origin = pos;
+                entries[i].reach = reach;
                 entries[i].actor = actor;
                 entries[i].expiresTick = now + ExpiryTicks;
                 return;
@@ -234,7 +238,6 @@ namespace SmartAIFramework.Grid
             nextExpiry = soonest;
         }
 
-        // Mirrors what vanilla's flee giver needs to see: a spawned, hostile, still-threatening attacker.
         private bool IsLive(Pawn actor, Pawn forPawn)
         {
             if (actor == null || !actor.Spawned || actor.Dead || actor.Downed || actor.Map != map)
@@ -244,7 +247,6 @@ namespace SmartAIFramework.Grid
             return !actor.ThreatDisabled(forPawn);
         }
 
-        // forPawn: the pawn asking, so hostility is judged against it (vanilla's flee giver does the same).
         public bool IsInReach(IntVec3 cell, Pawn forPawn = null)
         {
             if (count == 0) return false;
@@ -267,13 +269,15 @@ namespace SmartAIFramework.Grid
         public bool RegionInReach(Region region)
         {
             if (count == 0 || region == null) return false;
-            PruneIfNeeded(GenTicks.TicksGame);
+            int now = GenTicks.TicksGame;
+            PruneIfNeeded(now);
             if (count == 0) return false;
 
-            if (regionCacheVersion != version || regionCache.Count > MaxCachedRegions)
+            if (regionCacheVersion != version || regionCache.Count > MaxCachedRegions || now - cacheBuiltTick >= CacheTicks)
             {
                 regionCache.Clear();
                 regionCacheVersion = version;
+                cacheBuiltTick = now;
             }
             else if (regionCache.TryGetValue(region.id, out bool cachedResult))
             {
@@ -285,15 +289,50 @@ namespace SmartAIFramework.Grid
             {
                 IntVec3 origin = entries[i].origin;
                 float reach = entries[i].reach;
-                IntVec3 nearest = region.extentsClose.ClosestCellTo(origin);
-                if (nearest.DistanceToSquared(origin) > reach * reach)
-                    continue;
                 if (!IsLive(entries[i].actor, null))
                     continue;
-                result = GenSight.LineOfSight(origin, nearest, map, skipFirstCell: true);
+
+                CellRect r = region.extentsClose;
+                float reachSq = reach * reach;
+                result = SampleSees(r.ClosestCellTo(origin), region, origin, reachSq)
+                    || SampleSees(r.CenterCell, region, origin, reachSq)
+                    || SampleSees(new IntVec3(r.minX, 0, r.minZ), region, origin, reachSq)
+                    || SampleSees(new IntVec3(r.maxX, 0, r.minZ), region, origin, reachSq)
+                    || SampleSees(new IntVec3(r.minX, 0, r.maxZ), region, origin, reachSq)
+                    || SampleSees(new IntVec3(r.maxX, 0, r.maxZ), region, origin, reachSq);
             }
             regionCache[region.id] = result;
             return result;
+        }
+
+        private bool SampleSees(IntVec3 cell, Region region, IntVec3 origin, float reachSq)
+        {
+            if (!cell.InBounds(map) || cell.DistanceToSquared(origin) > reachSq)
+                return false;
+            if (map.regionGrid.GetValidRegionAt_NoRebuild(cell) != region)
+                return false;
+            return GenSight.LineOfSight(origin, cell, map, skipFirstCell: true);
+        }
+
+        private static readonly UnityEngine.Color OverlayLive = new UnityEngine.Color(1f, 0.25f, 0.2f);
+        private static readonly UnityEngine.Color OverlayStale = new UnityEngine.Color(0.6f, 0.6f, 0.6f);
+
+        public override void MapComponentUpdate()
+        {
+            if (count == 0 || !Prefs.DevMode || map != Find.CurrentMap)
+                return;
+            SmartAISettings settings = SmartAIMod.Settings;
+            if (settings == null || !settings.devShowThreatOverlay)
+                return;
+
+            int now = GenTicks.TicksGame;
+            float maxRing = GenRadial.MaxRadialPatternRadius - 1f;
+            for (int i = 0; i < count; i++)
+            {
+                bool live = entries[i].expiresTick > now && IsLive(entries[i].actor, null);
+                float radius = entries[i].reach < maxRing ? entries[i].reach : maxRing;
+                GenDraw.DrawRadiusRing(entries[i].origin, radius, live ? OverlayLive : OverlayStale);
+            }
         }
     }
 }

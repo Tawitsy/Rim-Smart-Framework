@@ -1,5 +1,8 @@
+using System.Collections.Generic;
+using RimWorld;
 using UnityEngine;
 using Verse;
+using Verse.AI;
 
 namespace SmartAIFramework
 {
@@ -9,6 +12,7 @@ namespace SmartAIFramework
         public bool moduleSurvivalEnabled = true;
         public bool moduleWorkEnabled = true;
         public bool moduleStructureEnabled = true;
+        public bool moduleMindEnabled = true;
 
         public bool combatFiringDiscipline = true;
         public bool combatMuzzleDiscipline = true;
@@ -48,10 +52,53 @@ namespace SmartAIFramework
         public bool structureAntiTrapping = true;
         public float acousticRadiusMultiplier = 1f;
 
+        public bool mindTantrumSparesExplosives = true;
+
+        public HashSet<string> disabledMentalBreaks = new HashSet<string>();
+
         public bool observeOnly = false;
         public bool debugLogging = false;
 
+        public const int DefaultThreatExpiryTicks = 600;
+        public const float DefaultThreatMinReach = 8f;
+        public const float DefaultThreatMaxReach = 40f;
+        public const int DefaultRegionCacheTicks = 60;
+        public const int DefaultThreatWaitTicks = 120;
+        public const int DefaultHeavyEvaluationsPerTick = 3;
+
+        public int advThreatExpiryTicks = DefaultThreatExpiryTicks;
+        public float advThreatMinReach = DefaultThreatMinReach;
+        public float advThreatMaxReach = DefaultThreatMaxReach;
+        public int advRegionCacheTicks = DefaultRegionCacheTicks;
+        public int advThreatWaitTicks = DefaultThreatWaitTicks;
+        public int advHeavyEvaluationsPerTick = DefaultHeavyEvaluationsPerTick;
+        public bool devShowThreatOverlay = false;
+
+        public void ResetAdvanced()
+        {
+            advThreatExpiryTicks = DefaultThreatExpiryTicks;
+            advThreatMinReach = DefaultThreatMinReach;
+            advThreatMaxReach = DefaultThreatMaxReach;
+            advRegionCacheTicks = DefaultRegionCacheTicks;
+            advThreatWaitTicks = DefaultThreatWaitTicks;
+            advHeavyEvaluationsPerTick = DefaultHeavyEvaluationsPerTick;
+        }
+
+        public void ClampAdvanced()
+        {
+            advThreatExpiryTicks = Mathf.Clamp(advThreatExpiryTicks, 120, 1800);
+            advThreatMinReach = Mathf.Clamp(advThreatMinReach, 4f, 20f);
+            advThreatMaxReach = Mathf.Clamp(advThreatMaxReach, 20f, 60f);
+            if (advThreatMaxReach < advThreatMinReach) advThreatMaxReach = advThreatMinReach;
+            advRegionCacheTicks = Mathf.Clamp(advRegionCacheTicks, 15, 250);
+            advThreatWaitTicks = Mathf.Clamp(advThreatWaitTicks, 30, 120);
+            advHeavyEvaluationsPerTick = Mathf.Clamp(advHeavyEvaluationsPerTick, 1, 10);
+        }
+
         private static Vector2 scrollPosition = Vector2.zero;
+
+        private static float contentHeight = 1680f;
+        private static List<MentalBreakDef> listedBreaks;
 
         public override void ExposeData()
         {
@@ -95,14 +142,107 @@ namespace SmartAIFramework
             Scribe_Values.Look(ref structureAntiTrapping, "structureAntiTrapping", true);
             Scribe_Values.Look(ref acousticRadiusMultiplier, "acousticRadiusMultiplier", 1f);
 
+            Scribe_Values.Look(ref moduleMindEnabled, "moduleMindEnabled", true);
+            Scribe_Values.Look(ref mindTantrumSparesExplosives, "mindTantrumSparesExplosives", true);
+            Scribe_Collections.Look(ref disabledMentalBreaks, "disabledMentalBreaks", LookMode.Value);
+            if (disabledMentalBreaks == null) disabledMentalBreaks = new HashSet<string>();
+
             Scribe_Values.Look(ref observeOnly, "observeOnly", false);
             Scribe_Values.Look(ref debugLogging, "debugLogging", false);
+
+            Scribe_Values.Look(ref advThreatExpiryTicks, "advThreatExpiryTicks", DefaultThreatExpiryTicks);
+            Scribe_Values.Look(ref advThreatMinReach, "advThreatMinReach", DefaultThreatMinReach);
+            Scribe_Values.Look(ref advThreatMaxReach, "advThreatMaxReach", DefaultThreatMaxReach);
+            Scribe_Values.Look(ref advRegionCacheTicks, "advRegionCacheTicks", DefaultRegionCacheTicks);
+            Scribe_Values.Look(ref advThreatWaitTicks, "advThreatWaitTicks", DefaultThreatWaitTicks);
+            Scribe_Values.Look(ref advHeavyEvaluationsPerTick, "advHeavyEvaluationsPerTick", DefaultHeavyEvaluationsPerTick);
+            Scribe_Values.Look(ref devShowThreatOverlay, "devShowThreatOverlay", false);
+            if (Scribe.mode == LoadSaveMode.PostLoadInit) ClampAdvanced();
+        }
+
+        private static List<MentalBreakDef> ListedBreaks()
+        {
+            if (listedBreaks != null) return listedBreaks;
+            listedBreaks = new List<MentalBreakDef>();
+            List<MentalBreakDef> all = DefDatabase<MentalBreakDef>.AllDefsListForReading;
+            for (int i = 0; i < all.Count; i++)
+                if (all[i].intensity == MentalBreakIntensity.Major || all[i].intensity == MentalBreakIntensity.Extreme)
+                    listedBreaks.Add(all[i]);
+            listedBreaks.Sort((a, b) =>
+            {
+                int byIntensity = b.intensity.CompareTo(a.intensity);
+                return byIntensity != 0 ? byIntensity : string.Compare(a.LabelCap.ToString(), b.LabelCap.ToString(), System.StringComparison.OrdinalIgnoreCase);
+            });
+            return listedBreaks;
+        }
+
+        private void DoMentalBreakList(Listing_Standard list)
+        {
+            if (disabledMentalBreaks == null) disabledMentalBreaks = new HashSet<string>();
+            List<MentalBreakDef> breaks = ListedBreaks();
+            MentalBreakIntensity? current = null;
+            for (int i = 0; i < breaks.Count; i++)
+            {
+                MentalBreakDef def = breaks[i];
+                if (current != def.intensity)
+                {
+                    current = def.intensity;
+                    list.Gap(4f);
+                    GUI.color = new Color(0.85f, 0.85f, 0.85f);
+                    list.Label(def.intensity == MentalBreakIntensity.Extreme ? "Extreme" : "Major");
+                    GUI.color = Color.white;
+                }
+
+                string label = def.LabelCap.ToString();
+                ModContentPack pack = def.modContentPack;
+                if (pack != null && !pack.IsCoreMod) label += " (" + pack.Name + ")";
+
+                bool allowed = !disabledMentalBreaks.Contains(def.defName);
+                bool before = allowed;
+                list.CheckboxLabeled(label, ref allowed, "Allowed: the colonists can get this break (vanilla). " + def.defName);
+                if (allowed != before)
+                {
+                    if (allowed) disabledMentalBreaks.Remove(def.defName);
+                    else disabledMentalBreaks.Add(def.defName);
+                }
+            }
+        }
+
+        private void DoAdvancedSection(Listing_Standard list)
+        {
+            list.GapLine();
+            Text.Font = GameFont.Medium;
+            list.Label("Advanced (Dev mode)");
+            Text.Font = GameFont.Small;
+            GUI.color = new Color(1f, 0.8f, 0.5f);
+            list.Label("For testing and tuning. The defaults are the tested values; other values can make pawns flee too much or too little, or cost more performance.");
+            GUI.color = Color.white;
+
+            list.CheckboxLabeled("Show threat overlay on the map", ref devShowThreatOverlay,
+                "Draws each registered shooter's reach as a ring (red: active, gray: no longer a threat). Dev mode only.");
+
+            list.Label($"Threat memory: {advThreatExpiryTicks} ticks ({advThreatExpiryTicks / 60f:F1}s)");
+            advThreatExpiryTicks = (int)list.Slider(advThreatExpiryTicks, 120f, 1800f);
+            list.Label($"Shooter reach, minimum: {advThreatMinReach:F0} cells");
+            advThreatMinReach = Mathf.Round(list.Slider(advThreatMinReach, 4f, 20f));
+            list.Label($"Shooter reach, maximum: {advThreatMaxReach:F0} cells");
+            advThreatMaxReach = Mathf.Round(list.Slider(advThreatMaxReach, 20f, 60f));
+            list.Label($"Region danger cache: {advRegionCacheTicks} ticks");
+            advRegionCacheTicks = (int)list.Slider(advRegionCacheTicks, 15f, 250f);
+            list.Label($"Wait instead of routine work in reach: {advThreatWaitTicks} ticks");
+            advThreatWaitTicks = (int)list.Slider(advThreatWaitTicks, 30f, 120f);
+            list.Label($"Heavy evaluations per tick: {advHeavyEvaluationsPerTick}");
+            advHeavyEvaluationsPerTick = (int)list.Slider(advHeavyEvaluationsPerTick, 1f, 10f);
+            ClampAdvanced();
+
+            if (list.ButtonText("Reset advanced values to defaults"))
+                ResetAdvanced();
         }
 
         public void DoWindowContents(Rect inRect)
         {
             Rect outRect = new Rect(inRect.x, inRect.y, inRect.width, inRect.height);
-            Rect viewRect = new Rect(0f, 0f, inRect.width - 24f, 1680f);
+            Rect viewRect = new Rect(0f, 0f, inRect.width - 24f, contentHeight);
 
             Widgets.BeginScrollView(outRect, ref scrollPosition, viewRect);
 
@@ -141,6 +281,8 @@ namespace SmartAIFramework
                 "Work delegation, hazard refusal, food and seating, opportunistic hauling, sanitation. Requires a restart.");
             list.CheckboxLabeled("Structure module", ref moduleStructureEnabled,
                 "Door discipline, builder wall safety, sleeping courtesy when wandering. Requires a restart.");
+            list.CheckboxLabeled("Mind module", ref moduleMindEnabled,
+                "Tantrums spare explosives, per-break disable list. Requires a restart.");
             list.GapLine();
 
             Text.Font = GameFont.Medium;
@@ -230,6 +372,18 @@ namespace SmartAIFramework
             list.GapLine();
 
             Text.Font = GameFont.Medium;
+            list.Label("Mind & Mental Breaks");
+            Text.Font = GameFont.Small;
+            list.CheckboxLabeled("Tantrums spare explosives", ref mindTantrumSparesExplosives,
+                "Colonists in a tantrum do not smash explosives (shells, chemfuel, IEDs) or shelves that hold them.");
+            list.Gap(4f);
+            GUI.color = new Color(0.85f, 0.85f, 0.85f);
+            list.Label("Uncheck a break to stop your colonists from getting it. The game then picks another break of the same strength, or a milder one if none is left. Applies to your colonists only.");
+            GUI.color = Color.white;
+            DoMentalBreakList(list);
+            list.GapLine();
+
+            Text.Font = GameFont.Medium;
             list.Label("General & Diagnostics");
             Text.Font = GameFont.Small;
             list.CheckboxLabeled("Observe-only mode", ref observeOnly,
@@ -237,6 +391,10 @@ namespace SmartAIFramework
             list.CheckboxLabeled("Debug logging", ref debugLogging,
                 "Prints detailed decision logs to the Dev Console and disk.");
 
+            if (Prefs.DevMode)
+                DoAdvancedSection(list);
+
+            contentHeight = list.CurHeight + 12f;
             list.End();
             Widgets.EndScrollView();
         }

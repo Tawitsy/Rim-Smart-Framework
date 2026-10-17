@@ -26,9 +26,6 @@ namespace SmartAIFramework.Grid
             return false;
         }
 
-        // Someone the shooter must not hit: not hostile, and not a wild animal (a squirrel or a grazing herd
-        // in the line of fire should not stop a hunter or a defender from shooting).
-        // Downed pawns are rarely struck by a passing bullet but are fully exposed to a blast.
         public static bool IsProtectedBystander(Pawn p, Pawn shooter, bool includeDowned = false)
         {
             if ((p.Downed && !includeDowned) || p.HostileTo(shooter))

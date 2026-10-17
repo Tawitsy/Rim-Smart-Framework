@@ -121,8 +121,6 @@ namespace SmartAIFramework.Patches
 
             if (t is Pawn patient && !patient.Downed && ColonistCareUtility.NeedsEarlyRescue(patient))
             {
-                // Vanilla's Rescue driver fails as soon as the takee is not downed, so a walking patient
-                // has to be carried with TakeToBedToOperate instead.
                 Building_Bed bed = Patch_WorkGiver_RescueDowned_HasJobOnThing.FindBedForEarlyRescue(pawn, patient);
                 if (bed == null)
                 {

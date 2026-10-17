@@ -11,7 +11,8 @@ namespace SmartAIFramework.Modules
             new CombatModule(),
             new SurvivalModule(),
             new WorkModule(),
-            new StructureModule()
+            new StructureModule(),
+            new MindModule()
         };
 
         public static SmartModule[] All => modules;
@@ -21,11 +22,11 @@ namespace SmartAIFramework.Modules
             for (int i = 0; i < modules.Length; i++)
                 modules[i].Active = modules[i].EnabledInSettings;
 
-            // Flags first, so a patch that fires during startup already sees the final state.
             ModuleFlags.Combat = modules[0].Active;
             ModuleFlags.Survival = modules[1].Active;
             ModuleFlags.Work = modules[2].Active;
             ModuleFlags.Structure = modules[3].Active;
+            ModuleFlags.Mind = modules[4].Active;
 
             PatchClasses(harmony, assembly, null);
 
@@ -43,8 +44,6 @@ namespace SmartAIFramework.Modules
             }
         }
 
-        // One patch class at a time, so a game update that renames or reshapes one target method (1.7, other
-        // mods' transpilers) switches off only that feature instead of the whole module or the whole mod.
         private static void PatchClasses(Harmony harmony, Assembly assembly, string category)
         {
             foreach (System.Type type in AccessTools.GetTypesFromAssembly(assembly))

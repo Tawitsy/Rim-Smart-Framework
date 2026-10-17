@@ -55,7 +55,7 @@ namespace SmartAIFramework.Patches
                 state.activeAimerCount++;
                 state.version++;
                 ColonyAlert.Raise(map, AlertLevel.Combat);
-                // Aiming at a colonist: the shooter's whole reach is dangerous while it keeps doing so.
+
                 ThreatMap.Get(map).Register(pawn, warmup.verb, PawnStateTracker.Now);
                 if (ModuleFlags.Combat)
                     CombatUtility.NotifyThreatPerceived(targetPawn, pawn.Position, urgent: true);
@@ -81,8 +81,6 @@ namespace SmartAIFramework.Patches
         public static void Prefix(Thing __instance) => StateCleanupUtility.Cleanup(__instance, forgetState: true);
     }
 
-    // Sensor for AIThreatExtension: hazards declared in XML become real grid hazards on spawn.
-    // Cleared by StateCleanupUtility.Cleanup on DeSpawn (ClearActor decrements the remembered weight).
     [HarmonyPatch(typeof(Thing), nameof(Thing.SpawnSetup), new[] { typeof(Map), typeof(bool) })]
     public static class Patch_Thing_SpawnSetup_ThreatExtension
     {

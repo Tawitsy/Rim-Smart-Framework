@@ -8,15 +8,11 @@ using Verse.AI;
 
 namespace SmartAIFramework.Decisions
 {
-    // The only code allowed to start, end, replace or interrupt a pawn's job on the mod's behalf.
     public static class JobDirector
     {
         private static readonly List<Pawn> interruptQueue = new List<Pawn>(16);
         private static bool isFlushing;
 
-        // Set when a shot is blocked inside TryCastShot. The flush is deferred until the verb has
-        // finished its burst bookkeeping, because vanilla applies Stance_Cooldown after TryCastShot
-        // returns false and that cooldown would otherwise pin the pawn in place.
         private static bool flushAfterCast;
 
         public static void Reset()
@@ -31,8 +27,6 @@ namespace SmartAIFramework.Decisions
             interruptQueue.Remove(pawn);
         }
 
-        // Ending the job of a pawn that is on fire, fleeing, or carrying something (a downed ally,
-        // a haul) does more harm than the tactical move gains: vanilla drops carried things on interrupt.
         public static bool IsProtectedFromInterrupt(Pawn pawn, Job curJob)
         {
             if (pawn.IsBurning() || pawn.carryTracker?.CarriedThing != null)
@@ -94,7 +88,6 @@ namespace SmartAIFramework.Decisions
                 return false;
             }
 
-            // A drafted assist classifies as PlayerOrder by definition, so only autonomous pawns are compared.
             if (!(p.assistDrafted && pawn.Drafted) && (int)Arbiter.ClassifyJob(pawn, curJob) <= (int)p.tier)
             {
                 blockedReason = "current job outranks the proposal";
@@ -128,7 +121,6 @@ namespace SmartAIFramework.Decisions
                 return;
             }
 
-            // The Arbiter swaps the pending proposal in at the pawn's next decision, whether or not it also interrupts.
             state.pendingProposal = p;
             if (p.actuation != Actuation.Interrupt)
                 return;
@@ -140,7 +132,6 @@ namespace SmartAIFramework.Decisions
                 FlushInterrupts();
         }
 
-        // The pawn is drafted, so there is no think-tree decision to wait for: start the short move directly.
         private static void ExecuteDraftedAssist(Proposal p)
         {
             Pawn pawn = p.pawn;
@@ -189,7 +180,6 @@ namespace SmartAIFramework.Decisions
 
                     if (!CanInterrupt(p, proposal, out string blockedReason))
                     {
-                        // The proposal stays pending: it can still be swapped in at the pawn's next decision.
                         Arbiter.OnBlocked(proposal, blockedReason);
                         continue;
                     }
@@ -198,8 +188,6 @@ namespace SmartAIFramework.Decisions
                     if (curJob != null && curJob.def == proposal.jobDef && curJob.targetA == proposal.target)
                         continue;
 
-                    // The job ends here and the Arbiter's decision-point hook supplies the replacement
-                    // while vanilla looks for the next job, which is when the proposal counts as executed.
                     p.stances?.CancelBusyStanceHard();
                     p.jobs?.EndCurrentJob(JobCondition.InterruptForced, startNewJob: true);
                 }
@@ -210,26 +198,42 @@ namespace SmartAIFramework.Decisions
             }
         }
 
+        public const string ThreatWaitReason = "routine job inside a shooter's reach";
+        public static int ThreatWaitTicks => SmartAIMod.Settings?.advThreatWaitTicks ?? SmartAISettings.DefaultThreatWaitTicks;
+
         public static void ApplyAtDecision(Pawn pawn, ref ThinkResult result)
         {
             Job discarded = result.Job;
             if (Arbiter.TryResolveAtDecision(pawn, discarded, out Job replacement))
             {
-                if (discarded != null)
-                {
-                    if (result.FromQueue)
-                    {
-                        // A queued job is usually one vanilla suspended, and it still holds its reservations.
-                        // Put it back so the pawn resumes it after the replacement, as after a vanilla interrupt.
-                        pawn.jobs.jobQueue.EnqueueFirst(discarded, result.Tag);
-                    }
-                    else
-                    {
-                        // Job givers such as JobGiver_Wander reserve the destination when they build the job.
-                        pawn.ClearReservationsForJob(discarded);
-                    }
-                }
+                ReleaseDiscarded(pawn, discarded, result);
                 result = new ThinkResult(replacement, result.SourceNode, result.Tag, fromQueue: false);
+                return;
+            }
+
+            if (discarded != null && ModuleFlags.Work && SmartAIMod.Settings.commonSenseHazardJobs &&
+                WorkUtility.IsRoutineJobInThreatReach(pawn, discarded))
+            {
+                Job wait = JobMaker.MakeJob(JobDefOf.Wait_Wander);
+                wait.expiryInterval = ThreatWaitTicks;
+                wait.checkOverrideOnExpire = true;
+                ReleaseDiscarded(pawn, discarded, result);
+                DecisionLog.Record(pawn, BehaviorIds.ThreatWait, DecisionTier.Survival, 0f, DecisionOutcome.Vetoed, ThreatWaitReason);
+                result = new ThinkResult(wait, result.SourceNode, result.Tag, fromQueue: false);
+            }
+        }
+
+        private static void ReleaseDiscarded(Pawn pawn, Job discarded, ThinkResult result)
+        {
+            if (discarded == null)
+                return;
+            if (result.FromQueue)
+            {
+                pawn.jobs.jobQueue.EnqueueFirst(discarded, result.Tag);
+            }
+            else
+            {
+                pawn.ClearReservationsForJob(discarded);
             }
         }
 
@@ -245,19 +249,19 @@ namespace SmartAIFramework.Decisions
             pawn.jobs.CheckForJobOverride();
         }
 
-        // Refuses a job without starting a replacement: the pawn keeps what it has, or vanilla looks again next tick.
-        // Suppressing the target stops the work search from re-picking the same job immediately.
-        public static bool VetoStartJob(Pawn pawn, Job newJob, string reason, int suppressTicks = -1)
+        public static bool VetoStartJob(Pawn pawn, Job newJob, string reason, int suppressTicks = -1, bool suppressTarget = true)
         {
             if (pawn == null || newJob == null || newJob.playerForced)
                 return false;
 
-            Thing target = newJob.targetA.Thing;
-            if (target == null)
-                return false;
+            if (suppressTarget)
+            {
+                Thing target = newJob.targetA.Thing;
+                if (target == null)
+                    return false;
+                PawnStateTracker.SuppressTarget(target, suppressTicks >= 0 ? suppressTicks : SmartAIMod.Settings.jobSuppressionDurationTicks);
+            }
 
-            PawnStateTracker.SuppressTarget(target, suppressTicks >= 0 ? suppressTicks : SmartAIMod.Settings.jobSuppressionDurationTicks);
-            // A job resumed from the queue arrives here still holding its reservations, and it will never run now.
             Map map = pawn.Map;
             if (map != null)
             {

@@ -174,7 +174,6 @@ namespace SmartAIFramework.Grid
             }
         }
 
-        // weight: how many times each covered cell counts; the footprint remembers it so ClearActor removes exactly what was added.
         public void RegisterHazard(Thing source, IntVec3 center, float radius, short weight = 1)
         {
             if (source == null) return;

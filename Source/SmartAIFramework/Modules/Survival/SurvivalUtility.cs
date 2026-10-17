@@ -57,9 +57,6 @@ namespace SmartAIFramework.Evaluation
             if (ambientTemp >= 12f && ambientTemp <= 32f)
                 return 0f;
 
-            // Only temperatures that actually hurt count as a hazard. Vanilla's safe range is the comfortable range
-            // widened by 10 C on each side (GenTemperature.SafeTemperatureRange); merely uncomfortable cold or heat
-            // must not stop work, or underdressed colonies stall all winter.
             GetComfortRange(pawn, out float minComfort, out float maxComfort);
             float minSafe = minComfort - SafeMarginC;
             float maxSafe = maxComfort + SafeMarginC;
@@ -75,8 +72,6 @@ namespace SmartAIFramework.Evaluation
         private const float UnsafeBaseRisk = 30f;
         private const float UnsafeRiskPerDegree = 3.5f;
 
-        // Cell searches ask for the same pawn's comfort range hundreds of times in one evaluation; the two stat
-        // calculations are the expensive part, so they are cached for the current pawn and tick.
         private static int comfortPawnId = -1;
         private static int comfortTick = -1;
         private static float comfortMin, comfortMax;

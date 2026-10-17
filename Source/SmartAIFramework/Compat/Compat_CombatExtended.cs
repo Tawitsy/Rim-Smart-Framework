@@ -51,8 +51,6 @@ namespace SmartAIFramework.Patches
             return false;
         }
 
-        // CE rejects shoot lines through allies before our cast hook runs, so the cast-time sidestep never fires.
-        // Hot path (CE target validation): the common case (__result == true) costs one bool test.
         private static void TryFindCEShootLineFromTo_Postfix(Verb __instance, bool __result, IntVec3 root, LocalTargetInfo targ)
         {
             if (__result) return;
@@ -79,7 +77,6 @@ namespace SmartAIFramework.Patches
             if (map == null || !targetCell.IsValid || !targetCell.InBounds(map))
                 return;
 
-            // A line rejected for range or sight is not a friendly-fire problem.
             float range = verb.EffectiveRange;
             if (range > 0f && root.DistanceToSquared(targetCell) > range * range)
                 return;

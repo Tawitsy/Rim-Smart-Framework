@@ -24,8 +24,6 @@ namespace SmartAIFramework.Patches
     {
         private const int ReconsiderTicks = 120;
 
-        // Returning false skips the original StartJob: the pawn keeps its current job, or vanilla looks for
-        // another one next tick. Nothing is substituted, so a vetoed job can never park the pawn.
         public static bool Prefix(Pawn ___pawn, Job newJob)
         {
             if (newJob == null || ___pawn == null || !___pawn.Spawned)
@@ -63,7 +61,6 @@ namespace SmartAIFramework.Patches
                         ___pawn,
                         MessageTypeDefOf.CautionInput);
 
-                    // A pawn already standing in the hot room should get out; the escape is taken up at its next decision.
                     if (___pawn.Position.GetRoom(___pawn.Map)?.Temperature > 60f &&
                         StructureUtility.TryFindNearestSafeRoom(___pawn, out IntVec3 fireSafeCell))
                     {
@@ -91,16 +88,17 @@ namespace SmartAIFramework.Patches
             if (!ModuleFlags.Work)
                 return true;
 
-            // Not throttled: every veto suppresses its target, so vanilla cannot pick the same one again, and letting
-            // the second pick through sent pawns into a shooter's reach (soak: 2 cases in 3 days).
-            bool inThreatReach = SmartAIMod.Settings.commonSenseHazardJobs && WorkUtility.IsRoutineJobInThreatReach(___pawn, newJob);
-            if (!inThreatReach)
+            if (SmartAIMod.Settings.commonSenseHazardJobs && WorkUtility.IsRoutineJobInThreatReach(___pawn, newJob))
             {
-                if (!WorkUtility.ShouldCancelHazardousJob(___pawn, newJob))
-                    return true;
-                if (!PawnStateTracker.CanOverrideStartJob(___pawn))
-                    return true;
+                if (SmartLog.IsEnabled)
+                    SmartLog.Decision("HazardJob", ___pawn, $"cancelled {newJob.def.defName} at {newJob.targetA.Cell} (shooter's reach)");
+                return !JobDirector.VetoStartJob(___pawn, newJob, JobDirector.ThreatWaitReason, -1, suppressTarget: false);
             }
+
+            if (!WorkUtility.ShouldCancelHazardousJob(___pawn, newJob))
+                return true;
+            if (!PawnStateTracker.CanOverrideStartJob(___pawn))
+                return true;
 
             if (SmartLog.IsEnabled)
                 SmartLog.Decision("HazardJob", ___pawn, $"cancelled {newJob.def.defName} at {newJob.targetA.Cell}");

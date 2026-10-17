@@ -42,7 +42,6 @@ namespace SmartAIFramework.Data
         public int nextSidestepTick;
         public int nextPredatorAlertTick;
 
-        // Memo of the last perceived-threat evaluation that left the pawn where it was.
         public int quietUntilTick;
         public IntVec3 quietPawnCell = IntVec3.Invalid;
         public IntVec3 quietThreatCell = IntVec3.Invalid;
@@ -50,18 +49,15 @@ namespace SmartAIFramework.Data
 
         public Proposal pendingProposal;
 
-        // Hysteresis: an executed proposal holds the pawn until committedUntilTick.
         public int committedUntilTick;
         public DecisionTier committedTier = DecisionTier.Routine;
         public float committedScore;
         public string committedBehaviorId;
 
-        // Per-behavior cooldowns in a few fixed slots, allocated on first use.
         public const int CooldownSlots = 8;
         public string[] cooldownIds;
         public int[] cooldownUntil;
 
-        // Fixed ring of the pawn's recent decisions; see DecisionLog.
         public DecisionEntry[] decisionRing;
         public int decisionNext;
         public int decisionCount;
@@ -183,11 +179,9 @@ namespace SmartAIFramework.Data
             suppressedTargets[target.thingIDNumber] = Now + durationTicks;
         }
 
-        // For diagnostics: both should stay proportional to what is on the map, not grow with play time.
         public static int TrackedPawnCount => states.Count;
         public static int SuppressedTargetCount => suppressedTargets.Count;
 
-        // Entries are otherwise only dropped when the target is checked again, which a destroyed thing never is.
         public static void ForgetTarget(Thing target)
         {
             if (target != null && suppressedTargets.Count > 0)

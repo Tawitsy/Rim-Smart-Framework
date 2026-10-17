@@ -16,19 +16,17 @@ namespace SmartAIFramework.Work
             Arbiter.RegisterDecisionPointBehavior(BehaviorIds.SelfTriage, ProposeAtDecision);
         }
 
-        // Pull behavior: asked at vanilla's decision point instead of rewriting jobs inside StartJob.
         private static Proposal ProposeAtDecision(Pawn pawn, Job vanillaChoice)
         {
             if (WorkUtility.IsMedicalOrRestJob(vanillaChoice?.def))
                 return null;
-            // Checks the setting and the bleed-out crisis itself, cheapest test first.
+
             if (!WorkUtility.TryMakeSelfTriageJob(pawn, out Job triageJob))
                 return null;
 
             return FromJob(pawn, triageJob, Actuation.AtNextDecision, "bleeding out soon: tend or rest");
         }
 
-        // Called from the damage hook: end the current job so the decision point above can swap triage in.
         public static void SubmitInterrupt(Pawn pawn)
         {
             if (!WorkUtility.TryMakeSelfTriageJob(pawn, out Job triageJob))

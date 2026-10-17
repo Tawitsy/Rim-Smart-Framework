@@ -122,9 +122,12 @@ Source/SmartAIFramework/
 │   ├── Work/                     # [HarmonyPatchCategory("Work")]
 │   │   ├── WorkModule.cs, WorkUtility.cs, WorkDelegationUtility.cs
 │   │   └── Patches/WorkPatches.cs
-│   └── Structure/                # [HarmonyPatchCategory("Structure")]
-│       ├── StructureModule.cs, StructureUtility.cs
-│       └── Patches/StructurePatches.cs
+│   ├── Structure/                # [HarmonyPatchCategory("Structure")]
+│   │   ├── StructureModule.cs, StructureUtility.cs
+│   │   └── Patches/StructurePatches.cs
+│   └── Mind/                     # [HarmonyPatchCategory("Mind")]
+│       ├── MindModule.cs
+│       └── Patches/MindPatches.cs
 ├── Compat/                       # Third-Party Mod Adapters (Reflected once at startup)
 │   ├── Compat_CombatExtended.cs  # CE projectile & line-of-sight integration
 │   ├── CommonSenseCompat.cs      # Prevents duplicate sanitation toils

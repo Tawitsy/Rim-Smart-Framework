@@ -23,8 +23,6 @@ namespace SmartAIFramework.Combat
         private static readonly float[] threatDistSq = new float[MaxThreats];
         private static int threatCount;
 
-        // Up to 3 nearest hostile, spawned, standing pawns within 40 cells (sorted insertion, static buffers).
-        // Falls back to the provided threat cell when none is found. Main thread only, inside budgeted evaluation.
         private static void CollectThreats(Map map, IntVec3 origin, IntVec3 threatPos)
         {
             int n = 0;
@@ -66,7 +64,6 @@ namespace SmartAIFramework.Combat
             threatCount = n;
         }
 
-        // Cover against the worst-covered of the collected threats (flanking), not just the nearest one.
         private static float MinBlockChance(IntVec3 cell, Map map)
         {
             float min = 1f;
@@ -109,7 +106,6 @@ namespace SmartAIFramework.Combat
                 }
             }
 
-            // No retreat option: running away is vanilla's flee (ThreatMap + Combat patches), the mod only picks cover.
             if (TryFindDirectionalCoverCore(pawn, out IntVec3 coverCell, out float blockChance))
             {
                 float dist = pawn.Position.DistanceTo(coverCell);
@@ -199,7 +195,6 @@ namespace SmartAIFramework.Combat
             return TryFindDirectionalCoverCore(pawn, out bestCover, out bestBlockChance);
         }
 
-        // Uses the threats already collected into the static buffer.
         private static bool TryFindDirectionalCoverCore(Pawn pawn, out IntVec3 bestCover, out float bestBlockChance)
         {
             bestCover = IntVec3.Invalid;
@@ -227,7 +222,7 @@ namespace SmartAIFramework.Combat
                     continue;
                 if (c.ContainsStaticFire(map) || c.ContainsTrap(map))
                     continue;
-                // Cheapest rejection first: most open cells have no cover piece next to them at all.
+
                 if (!HasSafeAdjacentCoverBuilding(map, c))
                     continue;
                 if (UtilityEvaluator.GetDangerAt(map, c, pawn) > 20f)
