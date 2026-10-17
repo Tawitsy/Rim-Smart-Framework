@@ -199,7 +199,7 @@ namespace SmartAIFramework.Decisions
         }
 
         public const string ThreatWaitReason = "routine job inside a shooter's reach";
-        public const int ThreatWaitTicks = 120;
+        public static int ThreatWaitTicks => SmartAIMod.Settings?.advThreatWaitTicks ?? SmartAISettings.DefaultThreatWaitTicks;
 
         public static void ApplyAtDecision(Pawn pawn, ref ThinkResult result)
         {

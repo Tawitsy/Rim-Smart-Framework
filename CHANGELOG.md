@@ -20,6 +20,8 @@
 - **Mind module** (can be switched off in Mod Settings, restart required).
 - **Tantrums spare explosives.** Colonists in a tantrum no longer smash explosives (shells, chemfuel, IEDs, modded explosives) or shelves and other storage that hold them. Can be turned off.
 - **Choose which mental breaks can happen.** Mod Settings lists every Major and Extreme mental break, including ones added by other mods. Uncheck a break and your colonists will not get it: the game picks another break of the same strength, or a milder one if none is left. Applies to your colonists only; everything is allowed by default.
+- **Advanced settings (Dev mode only).** With Dev mode on, Mod Settings shows an "Advanced" section to tune the danger system: how long a shooter is remembered, the minimum and maximum shooter reach, how often room danger is rechecked, how long colonists wait instead of working inside a shooter's reach (at most 2 seconds), and how many heavy evaluations run per tick. A "Reset" button restores the tested defaults.
+- **Threat overlay (Dev mode only).** Draws each shooter the mod is tracking as a ring on the map: red while it is a threat, gray once it is not.
 
 ## v1.2.0 (beta) - stability release
 

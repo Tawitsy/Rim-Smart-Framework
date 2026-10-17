@@ -11,7 +11,7 @@ namespace SmartAIFramework.Decisions
 {
     public static class Arbiter
     {
-        public const int MaxHeavyEvaluationsPerTick = 3;
+        public static int MaxHeavyEvaluationsPerTick => SmartAIMod.Settings?.advHeavyEvaluationsPerTick ?? SmartAISettings.DefaultHeavyEvaluationsPerTick;
 
         private const float HysteresisFactor = 1.25f;
         private const float HysteresisMargin = 10f;

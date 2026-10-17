@@ -9,13 +9,13 @@ namespace SmartAIFramework.Grid
     public sealed class ThreatMap : MapComponent
     {
         public const int MaxEntries = 128;
-        public const int ExpiryTicks = 600;
-        public const float MinReach = 8f;
-        public const float MaxReach = 40f;
         private const int MovedCellsSq = 9;
         private const int MaxCachedRegions = 2048;
 
-        private const int CacheTicks = 60;
+        public static int ExpiryTicks => SmartAIMod.Settings?.advThreatExpiryTicks ?? SmartAISettings.DefaultThreatExpiryTicks;
+        public static float MinReach => SmartAIMod.Settings?.advThreatMinReach ?? SmartAISettings.DefaultThreatMinReach;
+        public static float MaxReach => SmartAIMod.Settings?.advThreatMaxReach ?? SmartAISettings.DefaultThreatMaxReach;
+        private static int CacheTicks => SmartAIMod.Settings?.advRegionCacheTicks ?? SmartAISettings.DefaultRegionCacheTicks;
 
         private static ThreatMap[] byMapIndex = new ThreatMap[32];
 
@@ -312,6 +312,27 @@ namespace SmartAIFramework.Grid
             if (map.regionGrid.GetValidRegionAt_NoRebuild(cell) != region)
                 return false;
             return GenSight.LineOfSight(origin, cell, map, skipFirstCell: true);
+        }
+
+        private static readonly UnityEngine.Color OverlayLive = new UnityEngine.Color(1f, 0.25f, 0.2f);
+        private static readonly UnityEngine.Color OverlayStale = new UnityEngine.Color(0.6f, 0.6f, 0.6f);
+
+        public override void MapComponentUpdate()
+        {
+            if (count == 0 || !Prefs.DevMode || map != Find.CurrentMap)
+                return;
+            SmartAISettings settings = SmartAIMod.Settings;
+            if (settings == null || !settings.devShowThreatOverlay)
+                return;
+
+            int now = GenTicks.TicksGame;
+            float maxRing = GenRadial.MaxRadialPatternRadius - 1f;
+            for (int i = 0; i < count; i++)
+            {
+                bool live = entries[i].expiresTick > now && IsLive(entries[i].actor, null);
+                float radius = entries[i].reach < maxRing ? entries[i].reach : maxRing;
+                GenDraw.DrawRadiusRing(entries[i].origin, radius, live ? OverlayLive : OverlayStale);
+            }
         }
     }
 }

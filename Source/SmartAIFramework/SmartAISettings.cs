@@ -59,6 +59,42 @@ namespace SmartAIFramework
         public bool observeOnly = false;
         public bool debugLogging = false;
 
+        public const int DefaultThreatExpiryTicks = 600;
+        public const float DefaultThreatMinReach = 8f;
+        public const float DefaultThreatMaxReach = 40f;
+        public const int DefaultRegionCacheTicks = 60;
+        public const int DefaultThreatWaitTicks = 120;
+        public const int DefaultHeavyEvaluationsPerTick = 3;
+
+        public int advThreatExpiryTicks = DefaultThreatExpiryTicks;
+        public float advThreatMinReach = DefaultThreatMinReach;
+        public float advThreatMaxReach = DefaultThreatMaxReach;
+        public int advRegionCacheTicks = DefaultRegionCacheTicks;
+        public int advThreatWaitTicks = DefaultThreatWaitTicks;
+        public int advHeavyEvaluationsPerTick = DefaultHeavyEvaluationsPerTick;
+        public bool devShowThreatOverlay = false;
+
+        public void ResetAdvanced()
+        {
+            advThreatExpiryTicks = DefaultThreatExpiryTicks;
+            advThreatMinReach = DefaultThreatMinReach;
+            advThreatMaxReach = DefaultThreatMaxReach;
+            advRegionCacheTicks = DefaultRegionCacheTicks;
+            advThreatWaitTicks = DefaultThreatWaitTicks;
+            advHeavyEvaluationsPerTick = DefaultHeavyEvaluationsPerTick;
+        }
+
+        public void ClampAdvanced()
+        {
+            advThreatExpiryTicks = Mathf.Clamp(advThreatExpiryTicks, 120, 1800);
+            advThreatMinReach = Mathf.Clamp(advThreatMinReach, 4f, 20f);
+            advThreatMaxReach = Mathf.Clamp(advThreatMaxReach, 20f, 60f);
+            if (advThreatMaxReach < advThreatMinReach) advThreatMaxReach = advThreatMinReach;
+            advRegionCacheTicks = Mathf.Clamp(advRegionCacheTicks, 15, 250);
+            advThreatWaitTicks = Mathf.Clamp(advThreatWaitTicks, 30, 120);
+            advHeavyEvaluationsPerTick = Mathf.Clamp(advHeavyEvaluationsPerTick, 1, 10);
+        }
+
         private static Vector2 scrollPosition = Vector2.zero;
 
         private static float contentHeight = 1680f;
@@ -113,6 +149,15 @@ namespace SmartAIFramework
 
             Scribe_Values.Look(ref observeOnly, "observeOnly", false);
             Scribe_Values.Look(ref debugLogging, "debugLogging", false);
+
+            Scribe_Values.Look(ref advThreatExpiryTicks, "advThreatExpiryTicks", DefaultThreatExpiryTicks);
+            Scribe_Values.Look(ref advThreatMinReach, "advThreatMinReach", DefaultThreatMinReach);
+            Scribe_Values.Look(ref advThreatMaxReach, "advThreatMaxReach", DefaultThreatMaxReach);
+            Scribe_Values.Look(ref advRegionCacheTicks, "advRegionCacheTicks", DefaultRegionCacheTicks);
+            Scribe_Values.Look(ref advThreatWaitTicks, "advThreatWaitTicks", DefaultThreatWaitTicks);
+            Scribe_Values.Look(ref advHeavyEvaluationsPerTick, "advHeavyEvaluationsPerTick", DefaultHeavyEvaluationsPerTick);
+            Scribe_Values.Look(ref devShowThreatOverlay, "devShowThreatOverlay", false);
+            if (Scribe.mode == LoadSaveMode.PostLoadInit) ClampAdvanced();
         }
 
         private static List<MentalBreakDef> ListedBreaks()
@@ -161,6 +206,37 @@ namespace SmartAIFramework
                     else disabledMentalBreaks.Add(def.defName);
                 }
             }
+        }
+
+        private void DoAdvancedSection(Listing_Standard list)
+        {
+            list.GapLine();
+            Text.Font = GameFont.Medium;
+            list.Label("Advanced (Dev mode)");
+            Text.Font = GameFont.Small;
+            GUI.color = new Color(1f, 0.8f, 0.5f);
+            list.Label("For testing and tuning. The defaults are the tested values; other values can make pawns flee too much or too little, or cost more performance.");
+            GUI.color = Color.white;
+
+            list.CheckboxLabeled("Show threat overlay on the map", ref devShowThreatOverlay,
+                "Draws each registered shooter's reach as a ring (red: active, gray: no longer a threat). Dev mode only.");
+
+            list.Label($"Threat memory: {advThreatExpiryTicks} ticks ({advThreatExpiryTicks / 60f:F1}s)");
+            advThreatExpiryTicks = (int)list.Slider(advThreatExpiryTicks, 120f, 1800f);
+            list.Label($"Shooter reach, minimum: {advThreatMinReach:F0} cells");
+            advThreatMinReach = Mathf.Round(list.Slider(advThreatMinReach, 4f, 20f));
+            list.Label($"Shooter reach, maximum: {advThreatMaxReach:F0} cells");
+            advThreatMaxReach = Mathf.Round(list.Slider(advThreatMaxReach, 20f, 60f));
+            list.Label($"Region danger cache: {advRegionCacheTicks} ticks");
+            advRegionCacheTicks = (int)list.Slider(advRegionCacheTicks, 15f, 250f);
+            list.Label($"Wait instead of routine work in reach: {advThreatWaitTicks} ticks");
+            advThreatWaitTicks = (int)list.Slider(advThreatWaitTicks, 30f, 120f);
+            list.Label($"Heavy evaluations per tick: {advHeavyEvaluationsPerTick}");
+            advHeavyEvaluationsPerTick = (int)list.Slider(advHeavyEvaluationsPerTick, 1f, 10f);
+            ClampAdvanced();
+
+            if (list.ButtonText("Reset advanced values to defaults"))
+                ResetAdvanced();
         }
 
         public void DoWindowContents(Rect inRect)
@@ -314,6 +390,9 @@ namespace SmartAIFramework
                 "AI evaluates decisions and logs them without modifying pawn jobs. Good for testing.");
             list.CheckboxLabeled("Debug logging", ref debugLogging,
                 "Prints detailed decision logs to the Dev Console and disk.");
+
+            if (Prefs.DevMode)
+                DoAdvancedSection(list);
 
             contentHeight = list.CurHeight + 12f;
             list.End();
