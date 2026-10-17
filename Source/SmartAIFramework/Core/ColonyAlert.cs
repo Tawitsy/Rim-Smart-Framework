@@ -11,7 +11,6 @@ namespace SmartAIFramework.Data
         Combat
     }
 
-    // Per-map alert state decayed by timestamp, so no tick hook is needed. Written by sensors, read by work filters.
     public static class ColonyAlert
     {
         public const int CombatWindowTicks = 900;
@@ -26,7 +25,6 @@ namespace SmartAIFramework.Data
             public bool envHazard;
         }
 
-        // Far enough in the past that "now - never" cannot overflow or fall inside a window at game start.
         private const int NeverTick = -1000000;
 
         private static Slot[] byMapIndex = new Slot[8];
@@ -71,7 +69,6 @@ namespace SmartAIFramework.Data
             return AlertLevel.Peace;
         }
 
-        // Toxic fallout or noxious haze; asked once per work-scan candidate, so the answer is cached per tick.
         public static bool HasEnvironmentalHazard(Map map)
         {
             Slot slot = GetOrCreate(map);

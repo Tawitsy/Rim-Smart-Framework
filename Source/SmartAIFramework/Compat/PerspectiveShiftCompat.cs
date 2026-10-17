@@ -6,7 +6,6 @@ using Verse;
 
 namespace SmartAIFramework.Compat
 {
-    // The Perspective Shift avatar is the player's own body: the mod must never steer it.
     public static class PerspectiveShiftCompat
     {
         private static bool resolved;

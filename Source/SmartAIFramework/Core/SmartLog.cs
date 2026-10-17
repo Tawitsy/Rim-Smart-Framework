@@ -18,7 +18,6 @@ namespace SmartAIFramework.Data
             logFilePath = Path.Combine(rootDir, "RimSmartFramework_Debug.log");
         }
 
-        // Callers guard with IsEnabled so the message string is never built when logging is off.
         public static void Decision(string category, Pawn pawn, string text)
         {
             Message(category, $"{pawn?.LabelShort ?? "?"}: {text}");

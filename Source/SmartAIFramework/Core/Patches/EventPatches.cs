@@ -25,7 +25,6 @@ namespace SmartAIFramework.Patches
             if (___pawn == null || ___pawn.Dead || !___pawn.Spawned || totalDamageDealt <= 0f)
                 return;
 
-            // Records the damage and raises the colony alert; NotifyDamaged itself skips the cover reaction when Combat is off.
             CombatUtility.NotifyDamaged(___pawn, dinfo);
 
             if (ModuleFlags.Combat &&
@@ -47,7 +46,6 @@ namespace SmartAIFramework.Patches
                 PawnStateTracker.CanActAutonomously(___pawn) &&
                 !WorkUtility.IsMedicalOrRestJob(___pawn.CurJob?.def))
             {
-                // Interrupts only when a triage job exists; the decision point then swaps it in.
                 SelfTriageBehavior.SubmitInterrupt(___pawn);
             }
         }

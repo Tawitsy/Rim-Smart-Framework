@@ -17,7 +17,6 @@ namespace SmartAIFramework.Work
         private static Map sleeperFlagMap;
         private static bool sleeperFlagValue;
 
-        // Most ticks nobody is asleep; one colonist scan per tick per map lets the per-target roof/room lookups be skipped.
         private static bool AnyColonistAsleepInBed(Map map)
         {
             int now = PawnStateTracker.Now;
@@ -150,7 +149,6 @@ namespace SmartAIFramework.Work
             if (map == null || pawn.Drafted || !targetThing.Spawned)
                 return false;
 
-            // Work aimed at a person (tending, feeding, rescuing) is the reason to enter the room.
             if (targetThing is Pawn)
                 return false;
 

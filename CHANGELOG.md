@@ -1,5 +1,26 @@
 # Changelog
 
+## v1.2.1 (unreleased)
+
+### Fixed
+- Colonists no longer get stuck believing a spot is safe (or dangerous) after a wall is built or destroyed, or after an enemy stops being a threat: the mod rechecks within a second.
+- The mod now tracks where a shooter is standing right now, not where it stood a few steps ago.
+- A room is now judged by several points, so a room that is only visible along one side is no longer treated as safe.
+- Hauling into storage that sits inside a shooter's range is now caught too, not only picking things up there.
+- Colonists no longer keep re-picking the same job inside a shooter's range. They wait a moment and decide again, and the job is no longer blocked for colonists set to Attack.
+- The mod tracks up to 128 shooters at once (was 64), which matters in very large raids.
+- Colonists who are very hungry or exhausted are now allowed to go eat or sleep in every situation, not just some of them.
+
+### Known limitations
+- A shooter's reach is a bounded estimate (8-40 cells, line of sight only), and paths that cross a firing zone are not yet avoided.
+
+## v1.3.0 (unreleased)
+
+### Added
+- **Mind module** (can be switched off in Mod Settings, restart required).
+- **Tantrums spare explosives.** Colonists in a tantrum no longer smash explosives (shells, chemfuel, IEDs, modded explosives) or shelves and other storage that hold them. Can be turned off.
+- **Choose which mental breaks can happen.** Mod Settings lists every Major and Extreme mental break, including ones added by other mods. Uncheck a break and your colonists will not get it: the game picks another break of the same strength, or a milder one if none is left. Applies to your colonists only; everything is allowed by default.
+
 ## v1.2.0 (beta) - stability release
 
 This release rebuilds the core of the mod. Most of the work went into making pawns behave reliably, not into new features.
@@ -7,7 +28,7 @@ This release rebuilds the core of the mod. Most of the work went into making paw
 ### Changed
 - **One decision center.** Every change the mod makes to a pawn's job now goes through a single arbiter with a fixed priority order: player orders > game emergencies > survival > basic needs > tactics > routine work. Features can no longer fight each other or override something more important.
 - **Modules.** Combat, Survival, Work and Structure can each be switched off in Mod Settings. A disabled module patches nothing in the game (restart required).
-- **Lighter.** No per-tick polling at all. Mod time measured in-game with 110 colonists and a 90-raider raid: about 0.16 ms per tick during normal work and about 0.3-0.5 ms per tick during the raid (the previous version used about 3.8 ms).
+- **Lighter.** No per-tick polling at all. Mod time measured in-game with 110 colonists and a 90-raider raid: about 0.16-0.19 ms per tick during normal work and about 0.19-0.5 ms per tick during the raid (the previous version used about 3.8 ms).
 - **Danger has to be real.** Work is only refused for concrete harm: active firing lanes, fire, explosions, or temperatures outside the *safe* range (comfortable range ±10 °C). Underdressed colonies no longer refuse all outdoor work in winter.
 - **Danger is shared with the game.** The mod remembers which enemies are aiming at or shooting the colony, how far they reach and what they can see. The game's own decisions now read that: colonists stop picking work, food trips and idle wandering inside an active shooter's reach, the same way they already avoid deadly temperatures.
 - **Flee uses the game's own behavior.** Colonists set to *Flee* (the game's default) now flee when a shooter can hit them, even from long range, using vanilla's flee-and-cower. They wait in safety and only go back once the threat is gone. Colonists set to *Attack* get the mod's cover, hold and kite tactics. *Ignore* means no reaction, as the player chose. Set your fighters to *Attack* if you want them to take cover instead of fleeing.
@@ -28,8 +49,8 @@ This release rebuilds the core of the mod. Most of the work went into making paw
 
 ### Tested
 - 32 automated in-game tests covering every bug above, including a test that lets the game choose jobs repeatedly while a shooter is active and checks that no routine job leads into its reach.
-- Colony soak: 40 colonists for 3 in-game days with 12 raids, 26 fires, 69 injury rounds and 12 predators. No errors, no pawns stuck, no flip-flopping. The mod's own memory use stays proportional to the pawns on the map.
-- Compatibility run with a 102-mod list including Combat Extended, Common Sense, Pick Up and Haul, Perspective Shift and Search and Destroy: no errors from this mod (run on the build before the new flee system; a run with the final build is in progress).
+- Colony soak: 40 colonists for 3 in-game days with 12 raids, 26 fires, 69 injury rounds and 12 predators. No errors, no pawns stuck, no flip-flopping. The mod's own memory use stays proportional to the pawns on the map. A second 3-day run gave the same result.
+- Compatibility run with a 102-mod list including Combat Extended, Common Sense, Pick Up and Haul, Perspective Shift and Search and Destroy: no errors from this mod.
 
 ### Not tested yet
 - RimWorld 1.7 (the 1.7 folder ships the same build as 1.6).

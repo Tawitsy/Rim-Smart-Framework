@@ -16,7 +16,6 @@ namespace SmartAIFramework.Combat
     {
         private const int PredatorAlertCooldownTicks = 600;
 
-        // Cached on the pawn's tactical state for 600 ticks (and until its version changes, like capability).
         public static CombatRole GetRole(Pawn pawn)
         {
             if (pawn == null) return CombatRole.NonCombatant;
@@ -88,7 +87,7 @@ namespace SmartAIFramework.Combat
                 if (now >= state.nextSidestepTick && TryFindSidestepCell(shooter, target.Cell, out IntVec3 sidestep))
                 {
                     state.nextSidestepTick = now + 75;
-                    // We are inside TryCastShot: the interrupt is flushed after the cast, see the patch.
+
                     Arbiter.Submit(new Proposal
                     {
                         pawn = shooter,
@@ -294,7 +293,6 @@ namespace SmartAIFramework.Combat
                 }
             }
 
-            // The hold is a deliberate, short (45 tick) wait for the shooter to finish; never a fallback park.
             bool bypass = bestBypass.IsValid;
             int now = PawnStateTracker.Now;
             Arbiter.Submit(new Proposal
@@ -322,7 +320,6 @@ namespace SmartAIFramework.Combat
             int now = PawnStateTracker.Now;
             state.RecordDamage(dinfo.Amount, threatPos, now);
 
-            // Fire, falling debris, surgery and self-inflicted damage are not an enemy to take cover from.
             Thing instigator = dinfo.Instigator;
             if (instigator == null || instigator == victim || !instigator.HostileTo(victim))
                 return;
@@ -330,7 +327,7 @@ namespace SmartAIFramework.Combat
             if (victim.Faction == Faction.OfPlayer)
             {
                 ColonyAlert.Raise(victim.Map, AlertLevel.Combat);
-                // Shot at by this enemy: everything in its reach is dangerous until it is gone or stops.
+
                 if (instigator is Pawn shooter)
                     ThreatMap.Get(victim.Map).Register(shooter, shooter.CurrentEffectiveVerb, now);
             }
@@ -344,7 +341,7 @@ namespace SmartAIFramework.Combat
                 return;
 
             state.nextCoverEvalTick = now + 30;
-            // Actual damage is urgent: it skips the budget check but still uses up a slot.
+
             Arbiter.TryConsumeHeavyBudget(urgent: true);
             ExecuteCombatResponse(victim, threatPos, Actuation.Interrupt);
         }
@@ -388,9 +385,6 @@ namespace SmartAIFramework.Combat
             }
         }
 
-        // Urgent: a hostile is aiming at this pawn. Not urgent: it merely heard gunfire, and breaking off its work
-        // for that costs a full vanilla job search, so the reaction waits for the next decision unless it is close
-        // to the fight or standing somewhere dangerous.
         public static void NotifyThreatPerceived(Pawn pawn, IntVec3 threatPos, bool urgent)
         {
             if (!SmartAIMod.Settings.combatSmartCover || pawn?.Map == null)
@@ -405,17 +399,12 @@ namespace SmartAIFramework.Combat
 
             state.RecordThreat(threatPos, 300, now);
 
-            // Already on its way to cover: re-evaluating every 75 ticks only replaced that move with a
-            // near-identical one. Real hits still get through via the damage path.
             if (now < state.committedUntilTick && state.committedBehaviorId == BehaviorIds.Cover)
             {
                 state.nextCoverEvalTick = now + 75;
                 return;
             }
 
-            // Merely hearing distant gunfire from a safe spot is awareness, not danger: the alert level and the
-            // hazard work filter already keep the pawn out of the fight. Moving it here made it trade places with
-            // vanilla every time vanilla sent it back to safe work (soak: Repair/Haul/Wander <-> Goto loops).
             if (!urgent &&
                 pawn.Position.DistanceToSquared(threatPos) > NearThreatDistSq &&
                 UtilityEvaluator.GetDangerAt(pawn.Map, pawn.Position, pawn) < SmartAIMod.Settings.hazardSensitivity)
@@ -424,8 +413,6 @@ namespace SmartAIFramework.Combat
                 return;
             }
 
-            // In a long firefight the same pawn hears the same shooter over and over. If the last evaluation
-            // left it where it is and neither side has moved, the answer would be identical; skip the search.
             if (now < state.quietUntilTick && pawn.Position == state.quietPawnCell &&
                 threatPos.DistanceToSquared(state.quietThreatCell) <= QuietThreatToleranceSq)
             {
@@ -440,7 +427,7 @@ namespace SmartAIFramework.Combat
             }
 
             state.nextCoverEvalTick = now + 75;
-            // Only real exposure reaches this point (aimed at, threat within 12 cells, or a dangerous cell), so react now.
+
             if (!ExecuteCombatResponse(pawn, threatPos, Actuation.Interrupt))
             {
                 state.quietUntilTick = now + QuietPeriodTicks;
@@ -455,9 +442,6 @@ namespace SmartAIFramework.Combat
         private const int QuietThreatToleranceSq = 9;
         private const int NearThreatDistSq = 144;
 
-        // Only pawns set to Attack get the mod's cover and hold moves. Flee is vanilla's own flee (fed by the
-        // ThreatMap through the Combat patches), Ignore is the player's choice of no reaction. Pawns without the
-        // setting (guests, animals handled elsewhere) keep the tactical layer.
         public static bool UsesTacticalResponse(Pawn pawn)
         {
             Pawn_PlayerSettings settings = pawn.playerSettings;
@@ -466,7 +450,6 @@ namespace SmartAIFramework.Combat
             return settings.hostilityResponse == HostilityResponseMode.Attack;
         }
 
-        // Returns true when the pawn was sent somewhere else; false when it stays put (nothing better, or hold).
         private static bool ExecuteCombatResponse(Pawn pawn, IntVec3 threatPos, Actuation actuation)
         {
             if (!UsesTacticalResponse(pawn))
@@ -482,8 +465,7 @@ namespace SmartAIFramework.Combat
                     SmartLog.Decision("CombatResponse", pawn, $"{option.actionType} via {option.jobDef?.defName} -> {option.target.Cell} (score {option.netScore:F0}, threat {threatPos})");
 
                 bool triage = option.actionType == TacticalActionType.SelfTriage;
-                // A move to cover must last until the pawn gets there; cut off after 45 ticks it was sent straight
-                // back to work and moved again (soak: Haul/Repair/Wander <-> Goto loops).
+
                 bool move = !staysPut && option.actionType == TacticalActionType.SeekCover;
                 int holdTicks = move ? MoveTicks(pawn, option.target.Cell) : 45;
                 Arbiter.Submit(new Proposal
@@ -504,8 +486,6 @@ namespace SmartAIFramework.Combat
             return !staysPut;
         }
 
-        // Expected walking time to the cell with some slack for detours, bounded so a bad estimate cannot hold
-        // the pawn for long.
         public static int MoveTicks(Pawn pawn, IntVec3 cell)
         {
             float ticks = pawn.Position.DistanceTo(cell) * pawn.TicksPerMoveCardinal * 1.4f + 30f;
@@ -551,7 +531,6 @@ namespace SmartAIFramework.Combat
             RetreatSpot spot = SafeCellFinder.FindRetreatSpot(prey, predator.Position, 50f);
             if (spot.cell.IsValid && spot.cell != prey.Position)
             {
-                // The player is only told once the retreat actually starts.
                 bool accepted = Arbiter.Submit(new Proposal
                 {
                     pawn = prey,

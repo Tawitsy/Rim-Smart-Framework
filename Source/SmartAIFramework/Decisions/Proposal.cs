@@ -3,7 +3,6 @@ using Verse.AI;
 
 namespace SmartAIFramework.Decisions
 {
-    // Constants so log entries and cooldown slots can compare behavior ids by reference.
     public static class BehaviorIds
     {
         public const string Sidestep = "Combat.Sidestep";
@@ -18,6 +17,7 @@ namespace SmartAIFramework.Decisions
         public const string BlastEvac = "Survival.BlastEvac";
         public const string EscapeHeat = "Survival.EscapeHeat";
         public const string StartJobVeto = "StartJob.Veto";
+        public const string ThreatWait = "Work.ThreatWait";
     }
 
     public sealed class Proposal
@@ -34,11 +34,10 @@ namespace SmartAIFramework.Decisions
         public int commitTicks;
         public string reason;
 
-        // A blocked shot has to cancel the warmup it is stuck in; most proposals must not touch a busy stance.
         public bool allowBusyStance;
-        // The two features a player can enable to have the mod help a drafted pawn.
+
         public bool assistDrafted;
-        // Set while inside a verb cast: the interrupt waits until the burst bookkeeping is done.
+
         public bool deferFlush;
 
         public string executedMessage;

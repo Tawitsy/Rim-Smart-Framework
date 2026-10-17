@@ -57,8 +57,6 @@ namespace SmartAIFramework.Combat
             float baseRadius = radius * SmartAIMod.Settings.acousticRadiusMultiplier;
             if (baseRadius <= 0.5f) return;
 
-            // A distress call comes from the hurt colonist, not from the danger. Listeners react to the
-            // attacker nearest the victim; if none is known, the call carries no usable threat position.
             IntVec3 threatPos = position;
             if (isDistress)
             {
@@ -70,9 +68,6 @@ namespace SmartAIFramework.Combat
 
             int now = PawnStateTracker.Now;
 
-            // Every bullet impact lands here, so the per-listener work is ordered cheapest first: an integer
-            // distance cut (generous enough for enhanced hearing), then flags, cooldown, and only then the
-            // hostility and hearing-capacity lookups.
             float cutoff = baseRadius * MaxHearingFactor;
             float cutoffSq = cutoff * cutoff;
             bool alertRaised = false;
@@ -101,7 +96,6 @@ namespace SmartAIFramework.Combat
                 if (!listener.Position.InHorDistOf(position, maxDist))
                     continue;
 
-                // One raise per clamor, by the first colonist that actually hears hostile fire.
                 if (!isDistress && !alertRaised)
                 {
                     alertRaised = true;

@@ -6,7 +6,6 @@ using Verse;
 
 namespace SmartAIFramework.Compat
 {
-    // Common Sense already sweeps the work area before a bill; doing it twice would only waste the colonist's time.
     public static class CommonSenseCompat
     {
         private static bool resolved;

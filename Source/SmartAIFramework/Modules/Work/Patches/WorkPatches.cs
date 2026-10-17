@@ -26,8 +26,6 @@ namespace SmartAIFramework.Patches
         }
     }
 
-    // Most WorkGivers override HasJobOnThing without calling base, so the base patch above never sees
-    // them. These are the routine (non-emergency) overrides the delegation/suppression logic is meant for.
     [HarmonyPatchCategory("Work")]
     [HarmonyPatch]
     public static class Patch_WorkGiver_Overrides_HasJobOnThing
@@ -104,8 +102,6 @@ namespace SmartAIFramework.Patches
             return true;
         }
 
-        // Only routine work is ever refused, and only while a fight or an environmental hazard makes it matter.
-        // Repair is a Construction work giver in vanilla, so the work-type test covers it.
         private static bool ShouldRefuseHazardousWork(WorkGiver_Scanner scanner, Pawn pawn, Thing t)
         {
             if (!SmartAIMod.Settings.commonSenseHazardJobs)
@@ -119,9 +115,6 @@ namespace SmartAIFramework.Patches
             if (map == null)
                 return false;
 
-            // An active shooter's reach is dangerous for any non-emergency work, whatever the colony alert level says.
-            // Region danger cannot say so on open ground (vanilla's reachability short-circuits inside one district),
-            // so the scan is told directly.
             ThreatMap threats = ThreatMap.TryGet(map);
             if (threats != null && threats.AnyActive && t.Spawned && ThreatMap.IsEligible(pawn) && threats.IsInReach(t.Position, pawn))
                 return true;
@@ -278,8 +271,6 @@ namespace SmartAIFramework.Patches
             }
         }
 
-        // The pass costs real work time: the cleaning work vanilla would charge for these exact filth, at the pawn's own speed.
-        // Duration is only known once the pawn stands at the bench, so it is set in initAction.
         private static Toil CreateCleanPassToil(JobDriver_DoBill driver, List<Filth> picked)
         {
             Toil pass = ToilMaker.MakeToil("CleanImmediateWorkArea");
@@ -295,7 +286,6 @@ namespace SmartAIFramework.Patches
                     return;
                 }
 
-                // The progress bar reads defaultDuration, so both are set from the same value.
                 pass.defaultDuration = duration;
                 driver.ticksLeftThisToil = duration;
                 driver.pawn.pather.StopDead();
@@ -340,7 +330,6 @@ namespace SmartAIFramework.Patches
             return apply;
         }
 
-        // Returns the pass duration in ticks, or 0 when nothing should be cleaned.
         private static int TryPickFilth(JobDriver_DoBill driver, List<Filth> picked)
         {
             if (PawnStateTracker.ObserveOnly) return 0;
@@ -392,7 +381,6 @@ namespace SmartAIFramework.Patches
             return ticks;
         }
 
-        // Vanilla has no RoomRoleDefOf entry for the kitchen; the def itself ships in Core.
         private static RoomRoleDef KitchenRole
         {
             get

@@ -44,7 +44,6 @@ namespace SmartAIFramework.Patches
             }
             else
             {
-                // Job-target tests are cheap; HostileTo is not, and this runs on every step of every non-player pawn.
                 if (SmartAIMod.Settings.combatRangedKiting &&
                     ___pawn.CurJob?.targetA.Thing is Pawn targetColonist &&
                     targetColonist.IsColonist &&
@@ -56,7 +55,6 @@ namespace SmartAIFramework.Patches
                     CombatUtility.TryKiteFromMelee(targetColonist, ___pawn);
                 }
 
-                // Wild predators are not hostile-faction, so this is deliberately separate from the kiting check.
                 if (___pawn.CurJobDef == JobDefOf.PredatorHunt &&
                     SmartAIMod.Settings.predatorSurvivalAlert &&
                     ___pawn.CurJob.targetA.Thing is Pawn prey &&
@@ -73,9 +71,6 @@ namespace SmartAIFramework.Patches
         }
     }
 
-    // Danger as shared state: inside an active shooter's reach a region is as dangerous as a deadly temperature, so
-    // every vanilla search with maxDanger below Deadly (work, food, wander, beds) stops choosing or crossing it.
-    // A pawn already standing there can still leave: vanilla allows regions no more dangerous than the current one.
     [HarmonyPatchCategory("Combat")]
     [HarmonyPatch(typeof(Region), nameof(Region.DangerFor))]
     public static class Patch_Region_DangerFor
@@ -96,27 +91,15 @@ namespace SmartAIFramework.Patches
             if (p.Map != map || !ThreatMap.IsEligible(p))
                 return;
 
-            // Needs that cannot wait must still reach food and rest, whatever is shooting.
-            Pawn_NeedsTracker needs = p.needs;
-            if (needs != null)
-            {
-                if (needs.food != null && needs.food.CurCategory >= HungerCategory.UrgentlyHungry)
-                    return;
-                if (needs.rest != null && needs.rest.CurCategory == RestCategory.Exhausted)
-                    return;
-            }
-
             if (!threats.RegionInReach(__instance))
                 return;
 
             __result = Danger.Deadly;
-            // Keep vanilla's per-tick cache consistent with what this call returned.
+
             cachedDangers(__instance)[p] = Danger.Deadly;
         }
     }
 
-    // Vanilla's constant think tree asks this every 30 ticks; it then issues FleeAndCower itself (destination away
-    // from all hostiles, 1200 ticks of cowering), which is the commitment a short mod-issued move never had.
     [HarmonyPatchCategory("Combat")]
     [HarmonyPatch(typeof(SelfDefenseUtility), nameof(SelfDefenseUtility.ShouldStartFleeing))]
     public static class Patch_SelfDefenseUtility_ShouldStartFleeing

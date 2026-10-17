@@ -1,5 +1,8 @@
+using System.Collections.Generic;
+using RimWorld;
 using UnityEngine;
 using Verse;
+using Verse.AI;
 
 namespace SmartAIFramework
 {
@@ -9,6 +12,7 @@ namespace SmartAIFramework
         public bool moduleSurvivalEnabled = true;
         public bool moduleWorkEnabled = true;
         public bool moduleStructureEnabled = true;
+        public bool moduleMindEnabled = true;
 
         public bool combatFiringDiscipline = true;
         public bool combatMuzzleDiscipline = true;
@@ -48,10 +52,17 @@ namespace SmartAIFramework
         public bool structureAntiTrapping = true;
         public float acousticRadiusMultiplier = 1f;
 
+        public bool mindTantrumSparesExplosives = true;
+
+        public HashSet<string> disabledMentalBreaks = new HashSet<string>();
+
         public bool observeOnly = false;
         public bool debugLogging = false;
 
         private static Vector2 scrollPosition = Vector2.zero;
+
+        private static float contentHeight = 1680f;
+        private static List<MentalBreakDef> listedBreaks;
 
         public override void ExposeData()
         {
@@ -95,14 +106,67 @@ namespace SmartAIFramework
             Scribe_Values.Look(ref structureAntiTrapping, "structureAntiTrapping", true);
             Scribe_Values.Look(ref acousticRadiusMultiplier, "acousticRadiusMultiplier", 1f);
 
+            Scribe_Values.Look(ref moduleMindEnabled, "moduleMindEnabled", true);
+            Scribe_Values.Look(ref mindTantrumSparesExplosives, "mindTantrumSparesExplosives", true);
+            Scribe_Collections.Look(ref disabledMentalBreaks, "disabledMentalBreaks", LookMode.Value);
+            if (disabledMentalBreaks == null) disabledMentalBreaks = new HashSet<string>();
+
             Scribe_Values.Look(ref observeOnly, "observeOnly", false);
             Scribe_Values.Look(ref debugLogging, "debugLogging", false);
+        }
+
+        private static List<MentalBreakDef> ListedBreaks()
+        {
+            if (listedBreaks != null) return listedBreaks;
+            listedBreaks = new List<MentalBreakDef>();
+            List<MentalBreakDef> all = DefDatabase<MentalBreakDef>.AllDefsListForReading;
+            for (int i = 0; i < all.Count; i++)
+                if (all[i].intensity == MentalBreakIntensity.Major || all[i].intensity == MentalBreakIntensity.Extreme)
+                    listedBreaks.Add(all[i]);
+            listedBreaks.Sort((a, b) =>
+            {
+                int byIntensity = b.intensity.CompareTo(a.intensity);
+                return byIntensity != 0 ? byIntensity : string.Compare(a.LabelCap.ToString(), b.LabelCap.ToString(), System.StringComparison.OrdinalIgnoreCase);
+            });
+            return listedBreaks;
+        }
+
+        private void DoMentalBreakList(Listing_Standard list)
+        {
+            if (disabledMentalBreaks == null) disabledMentalBreaks = new HashSet<string>();
+            List<MentalBreakDef> breaks = ListedBreaks();
+            MentalBreakIntensity? current = null;
+            for (int i = 0; i < breaks.Count; i++)
+            {
+                MentalBreakDef def = breaks[i];
+                if (current != def.intensity)
+                {
+                    current = def.intensity;
+                    list.Gap(4f);
+                    GUI.color = new Color(0.85f, 0.85f, 0.85f);
+                    list.Label(def.intensity == MentalBreakIntensity.Extreme ? "Extreme" : "Major");
+                    GUI.color = Color.white;
+                }
+
+                string label = def.LabelCap.ToString();
+                ModContentPack pack = def.modContentPack;
+                if (pack != null && !pack.IsCoreMod) label += " (" + pack.Name + ")";
+
+                bool allowed = !disabledMentalBreaks.Contains(def.defName);
+                bool before = allowed;
+                list.CheckboxLabeled(label, ref allowed, "Allowed: the colonists can get this break (vanilla). " + def.defName);
+                if (allowed != before)
+                {
+                    if (allowed) disabledMentalBreaks.Remove(def.defName);
+                    else disabledMentalBreaks.Add(def.defName);
+                }
+            }
         }
 
         public void DoWindowContents(Rect inRect)
         {
             Rect outRect = new Rect(inRect.x, inRect.y, inRect.width, inRect.height);
-            Rect viewRect = new Rect(0f, 0f, inRect.width - 24f, 1680f);
+            Rect viewRect = new Rect(0f, 0f, inRect.width - 24f, contentHeight);
 
             Widgets.BeginScrollView(outRect, ref scrollPosition, viewRect);
 
@@ -141,6 +205,8 @@ namespace SmartAIFramework
                 "Work delegation, hazard refusal, food and seating, opportunistic hauling, sanitation. Requires a restart.");
             list.CheckboxLabeled("Structure module", ref moduleStructureEnabled,
                 "Door discipline, builder wall safety, sleeping courtesy when wandering. Requires a restart.");
+            list.CheckboxLabeled("Mind module", ref moduleMindEnabled,
+                "Tantrums spare explosives, per-break disable list. Requires a restart.");
             list.GapLine();
 
             Text.Font = GameFont.Medium;
@@ -230,6 +296,18 @@ namespace SmartAIFramework
             list.GapLine();
 
             Text.Font = GameFont.Medium;
+            list.Label("Mind & Mental Breaks");
+            Text.Font = GameFont.Small;
+            list.CheckboxLabeled("Tantrums spare explosives", ref mindTantrumSparesExplosives,
+                "Colonists in a tantrum do not smash explosives (shells, chemfuel, IEDs) or shelves that hold them.");
+            list.Gap(4f);
+            GUI.color = new Color(0.85f, 0.85f, 0.85f);
+            list.Label("Uncheck a break to stop your colonists from getting it. The game then picks another break of the same strength, or a milder one if none is left. Applies to your colonists only.");
+            GUI.color = Color.white;
+            DoMentalBreakList(list);
+            list.GapLine();
+
+            Text.Font = GameFont.Medium;
             list.Label("General & Diagnostics");
             Text.Font = GameFont.Small;
             list.CheckboxLabeled("Observe-only mode", ref observeOnly,
@@ -237,6 +315,7 @@ namespace SmartAIFramework
             list.CheckboxLabeled("Debug logging", ref debugLogging,
                 "Prints detailed decision logs to the Dev Console and disk.");
 
+            contentHeight = list.CurHeight + 12f;
             list.End();
             Widgets.EndScrollView();
         }

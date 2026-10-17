@@ -18,7 +18,7 @@ namespace SmartAIFramework.Data
         public bool isTrap;
         public float marketValue;
         public float valueDensity;
-        // Declared in XML via AIThreatExtension; null when the def has none.
+
         public AIThreatExtension threatExtension;
         public short hazardWeight = 1;
     }
@@ -61,8 +61,6 @@ namespace SmartAIFramework.Data
             return profile;
         }
 
-        // Indexed by ThingDef.index. Built once on the first spawn after a game starts (one GetModExtension per def),
-        // so the per-spawn check is a single array read.
         private static bool[] hasThreatExtension;
 
         public static bool HasThreatExtension(ThingDef def)

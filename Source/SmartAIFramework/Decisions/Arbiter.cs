@@ -23,7 +23,6 @@ namespace SmartAIFramework.Decisions
             public Func<Pawn, Job, Proposal> propose;
         }
 
-        // Registered once at mod init; deliberately not cleared by Reset.
         private static readonly List<PullBehavior> pullBehaviors = new List<PullBehavior>(4);
 
         private static int budgetTick = -1;
@@ -40,8 +39,6 @@ namespace SmartAIFramework.Decisions
             pullBehaviors.Add(new PullBehavior { id = behaviorId, propose = propose });
         }
 
-        // Lazily reset on first use in a new tick, so no tick hook is needed. Bounds worst-case cost with many colonists.
-        // Urgent work (actual damage) skips the check but still uses up a slot.
         public static bool TryConsumeHeavyBudget(bool urgent)
         {
             int now = PawnStateTracker.Now;
@@ -58,7 +55,6 @@ namespace SmartAIFramework.Decisions
             return true;
         }
 
-        // Cooldowns that already gate before proposing keep their numbers, so the arbiter never lengthens them.
         public static int GetCooldownTicks(string behaviorId)
         {
             switch (behaviorId)
@@ -72,7 +68,6 @@ namespace SmartAIFramework.Decisions
             }
         }
 
-        // Lets a hot-path caller skip its own search when Submit would reject the behavior anyway.
         public static bool IsOnCooldown(Pawn pawn, string behaviorId)
         {
             PawnTacticalState state = PawnStateTracker.TryGet(pawn);
@@ -96,7 +91,6 @@ namespace SmartAIFramework.Decisions
                 return false;
             }
 
-            // A Goto to the cell the pawn already stands on ends instantly and only wastes an interrupt.
             if (p.jobDef == JobDefOf.Goto && p.target.IsValid && !p.target.HasThing && p.target.Cell == pawn.Position)
             {
                 DecisionLog.Record(pawn, p, DecisionOutcome.RejectedTier, "already at the target cell");
@@ -109,10 +103,9 @@ namespace SmartAIFramework.Decisions
                 return false;
             }
 
-            // A drafted assist starts directly and never sits in the pending slot.
             bool direct = p.assistDrafted && pawn.Drafted;
             Proposal pending = state.pendingProposal;
-            // Tier first, then score: a pending tactical move must never block a survival proposal.
+
             if (!direct && pending != null && now < pending.validUntilTick && !IsBetter(p, pending))
             {
                 DecisionLog.Record(pawn, p, DecisionOutcome.RejectedCommitment, "a pending proposal ranks at least as high");
@@ -124,8 +117,6 @@ namespace SmartAIFramework.Decisions
             return true;
         }
 
-        // Called from the DetermineNextJob postfix. Only undrafted player-faction pawns are ours: other mods
-        // (for example Search and Destroy) own the drafted case at the same hook.
         public static bool TryResolveAtDecision(Pawn pawn, Job vanillaChoice, out Job replacement)
         {
             replacement = null;
@@ -148,7 +139,6 @@ namespace SmartAIFramework.Decisions
             DecisionTier vanillaTier = ClassifyVanillaChoice(pawn, vanillaChoice);
             if ((int)vanillaTier <= (int)DecisionTier.VanillaEmergency)
             {
-                // Nothing the mod proposes outranks a player order or a vanilla emergency.
                 if (pending != null)
                 {
                     DecisionLog.Record(pawn, pending, DecisionOutcome.RejectedTier, "vanilla choice outranks it");
@@ -183,7 +173,6 @@ namespace SmartAIFramework.Decisions
                 return false;
             }
 
-            // Vanilla already chose to tend or rest: swapping in our own triage job would add nothing.
             if (WorkUtility.IsMedicalOrRestJob(vanillaChoice?.def) && WorkUtility.IsMedicalOrRestJob(best.jobDef))
             {
                 DecisionLog.Record(pawn, best, DecisionOutcome.RejectedTier, "vanilla already chose a medical or rest job");
@@ -213,7 +202,6 @@ namespace SmartAIFramework.Decisions
             return ClassifyJob(pawn, vanillaChoice);
         }
 
-        // Ranks a job (the vanilla choice or the pawn's current job) against the mod's own tiers.
         public static DecisionTier ClassifyJob(Pawn pawn, Job job)
         {
             if (pawn.Drafted || (job != null && job.playerForced) || PerspectiveShiftCompat.IsDirectlyControlled(pawn))
@@ -231,7 +219,6 @@ namespace SmartAIFramework.Decisions
             PawnTacticalState state = PawnStateTracker.GetOrCreate(pawn);
             int now = PawnStateTracker.Now;
 
-            // Winning displaced any older commitment, so a proposal without one clears it.
             if (p.commitTicks > 0)
             {
                 state.committedUntilTick = now + p.commitTicks;
@@ -299,7 +286,6 @@ namespace SmartAIFramework.Decisions
                 state.cooldownUntil = new int[PawnTacticalState.CooldownSlots];
             }
 
-            // Reuse the slot of this behavior, else an empty one, else the one that expires first.
             int slot = 0;
             int oldest = int.MaxValue;
             for (int i = 0; i < state.cooldownIds.Length; i++)

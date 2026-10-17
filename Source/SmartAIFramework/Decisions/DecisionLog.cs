@@ -50,7 +50,6 @@ namespace SmartAIFramework.Decisions
             Record(pawn, p.behaviorId, p.tier, p.score, outcome, reason ?? p.reason);
         }
 
-        // Reasons passed here must be constants: this runs on hot paths and must not allocate.
         public static void Record(Pawn pawn, string behaviorId, DecisionTier tier, float score, DecisionOutcome outcome, string reason)
         {
             if (pawn == null) return;
@@ -81,7 +80,6 @@ namespace SmartAIFramework.Decisions
                 SmartLog.Decision("Arbiter", pawn, $"{behaviorId} {outcome} (tier {tier}, score {score:F0}){(reason != null ? " - " + reason : "")}");
         }
 
-        // Dev action only, so building strings here is fine.
         public static string Explain(Pawn pawn)
         {
             if (pawn == null) return "No pawn.";

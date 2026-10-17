@@ -9,11 +9,10 @@ namespace SmartAIFramework.API
 {
     public class AIThreatExtension : DefModExtension
     {
-        // Radius in cells of the hazard registered on the tactical grid when a Thing with this extension spawns. 0 = none.
         public float hazardRadius = 0f;
-        // 0-100 intensity; mapped to a grid weight of clamp(round(dangerScore / 30), 1, 4).
+
         public float dangerScore = 50f;
-        // Reserved: has no effect yet (drafted pawns are not routed around declared hazards). Kept for API compatibility.
+
         public bool avoidWhenDrafted = true;
     }
 

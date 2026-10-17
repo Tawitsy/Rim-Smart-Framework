@@ -12,8 +12,6 @@ namespace SmartAIFramework.Work
 {
     public static class WorkUtility
     {
-        // Next tick at which each pawn may run the (map-wide) pre-trip / opportunistic-haul searches again.
-        // Failed searches back off too, otherwise every job start of a hungry or idle pawn repeated them.
         private static readonly Dictionary<int, int> nextPreTripTick = new Dictionary<int, int>(32);
         private static readonly Dictionary<int, int> nextOppHaulTick = new Dictionary<int, int>(32);
         private const int PreTripCooldownTicks = 2500;
@@ -27,8 +25,6 @@ namespace SmartAIFramework.Work
             if (job.playerForced || pawn.Drafted || !pawn.IsColonist)
                 return false;
 
-            // Backstop for job sources that search with Danger.Deadly and so ignore the region danger the Combat
-            // patches raise inside a shooter's reach (storage cells, joy, inventory stocking, ...).
             if (IsRoutineJobInThreatReach(pawn, job))
                 return true;
 
@@ -42,30 +38,35 @@ namespace SmartAIFramework.Work
             return IsHazardousAt(pawn, target.Cell, target.Thing, job.def);
         }
 
-        // Any routine-tier job whose target is inside the reach of an active shooter, for a pawn that would flee from it.
         public static bool IsRoutineJobInThreatReach(Pawn pawn, Job job)
         {
             Thing target = job.targetA.Thing;
-            if (target == null || !target.Spawned || target.Map != pawn.Map)
+            LocalTargetInfo targetB = job.targetB;
+            bool aUsable = target != null && target.Spawned && target.Map == pawn.Map;
+            bool bUsable = targetB.IsValid && (!targetB.HasThing || (targetB.Thing.Spawned && targetB.Thing.Map == pawn.Map));
+            if (!aUsable && !bUsable)
                 return false;
 
             ThreatMap threats = ThreatMap.TryGet(pawn.Map);
             if (threats == null || !threats.AnyActive || !ThreatMap.IsEligible(pawn))
                 return false;
 
-            // A colonist set to Flee never starts an attack of its own; leave those jobs to vanilla.
             if (job.def == JobDefOf.AttackMelee || job.def == JobDefOf.AttackStatic)
                 return false;
-            // Vanilla drops what a pawn carries when its job is replaced, so a carrier is never vetoed (§1.4).
+
             if (pawn.carryTracker?.CarriedThing != null)
                 return false;
             if (Arbiter.ClassifyJob(pawn, job) != DecisionTier.Routine)
                 return false;
 
-            return threats.IsInReach(target.Position, pawn);
+            if (aUsable && threats.IsInReach(target.Position, pawn))
+                return true;
+            if (!bUsable)
+                return false;
+            IntVec3 cellB = targetB.HasThing ? targetB.Thing.Position : targetB.Cell;
+            return cellB.InBounds(pawn.Map) && threats.IsInReach(cellB, pawn);
         }
 
-        // Shared by the StartJob safety net and the work-scan filter.
         public static bool IsHazardousWorkTarget(Pawn pawn, Thing target, JobDef jobDefOrNull)
         {
             if (pawn == null || target == null || pawn.Map == null || !target.Spawned)
@@ -154,9 +155,6 @@ namespace SmartAIFramework.Work
             return false;
         }
 
-        // Only returns a job that actually helps: self-tending, or lying in a bed where a doctor can tend.
-        // Lying on bare ground is not tendable in vanilla and only made the pawn bob up and down, and a
-        // burning pawn must be left to put itself out (vanilla gives ExtinguishSelf on a 10% think roll).
         public static bool TryMakeSelfTriageJob(Pawn pawn, out Job triageJob)
         {
             triageJob = null;
@@ -197,7 +195,6 @@ namespace SmartAIFramework.Work
                    IsSurvivalCriticalJob(def);
         }
 
-        // Resting, eating, tending and fire-fighting: vital needs a tactical reaction must not displace.
         public static bool IsVitalNeedJob(JobDef def)
         {
             if (def == null) return false;
@@ -206,7 +203,6 @@ namespace SmartAIFramework.Work
                    def == JobDefOf.TakeToBedToOperate || def == JobDefOf.FeedPatient || def == JobDefOf.BeatFire;
         }
 
-        // Vanilla's own emergency reactions. The framework must never replace or interrupt these.
         public static bool IsSurvivalCriticalJob(JobDef def)
         {
             if (def == null) return false;
