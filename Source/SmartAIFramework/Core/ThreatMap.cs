@@ -6,8 +6,37 @@ using Verse;
 
 namespace SmartAIFramework.Grid
 {
-    public sealed class ThreatMap : MapComponent
+    public sealed class ThreatMap : MapComponent, System.IDisposable
     {
+        private ThreatPathCustomizer pathCustomizer;
+
+        public ThreatPathCustomizer PathCustomizer => pathCustomizer ?? (pathCustomizer = new ThreatPathCustomizer(map, this));
+
+        public void Dispose()
+        {
+            if (pathCustomizer == null) return;
+            pathCustomizer.Dispose();
+            pathCustomizer = null;
+        }
+
+        public int EntryCount => count;
+
+        public void PruneExpired()
+        {
+            PruneIfNeeded(GenTicks.TicksGame);
+        }
+
+        public bool TryGetLiveEntry(int index, out IntVec3 origin, out float reach)
+        {
+            origin = IntVec3.Invalid;
+            reach = 0f;
+            if ((uint)index >= (uint)count || !IsLive(entries[index].actor, null))
+                return false;
+            origin = entries[index].origin;
+            reach = entries[index].reach;
+            return true;
+        }
+
         public const int MaxEntries = 128;
         private const int MovedCellsSq = 9;
         private const int MaxCachedRegions = 2048;

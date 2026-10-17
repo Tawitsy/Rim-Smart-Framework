@@ -68,6 +68,8 @@ namespace SmartAIFramework
         public const int DefaultRegionCacheTicks = 60;
         public const int DefaultThreatWaitTicks = 120;
         public const int DefaultHeavyEvaluationsPerTick = 3;
+        public const int DefaultPathAvoidCost = 60;
+        public const int MaxPathAvoidCost = 2000;
 
         public int advThreatExpiryTicks = DefaultThreatExpiryTicks;
         public float advThreatMinReach = DefaultThreatMinReach;
@@ -75,6 +77,7 @@ namespace SmartAIFramework
         public int advRegionCacheTicks = DefaultRegionCacheTicks;
         public int advThreatWaitTicks = DefaultThreatWaitTicks;
         public int advHeavyEvaluationsPerTick = DefaultHeavyEvaluationsPerTick;
+        public int advPathAvoidCost = DefaultPathAvoidCost;
         public bool devShowThreatOverlay = false;
 
         public void ResetAdvanced()
@@ -85,6 +88,7 @@ namespace SmartAIFramework
             advRegionCacheTicks = DefaultRegionCacheTicks;
             advThreatWaitTicks = DefaultThreatWaitTicks;
             advHeavyEvaluationsPerTick = DefaultHeavyEvaluationsPerTick;
+            advPathAvoidCost = DefaultPathAvoidCost;
         }
 
         public void ClampAdvanced()
@@ -96,6 +100,7 @@ namespace SmartAIFramework
             advRegionCacheTicks = Mathf.Clamp(advRegionCacheTicks, 15, 250);
             advThreatWaitTicks = Mathf.Clamp(advThreatWaitTicks, 30, 120);
             advHeavyEvaluationsPerTick = Mathf.Clamp(advHeavyEvaluationsPerTick, 1, 10);
+            advPathAvoidCost = Mathf.Clamp(advPathAvoidCost, 0, MaxPathAvoidCost);
         }
 
         private static Vector2 scrollPosition = Vector2.zero;
@@ -162,6 +167,7 @@ namespace SmartAIFramework
             Scribe_Values.Look(ref advRegionCacheTicks, "advRegionCacheTicks", DefaultRegionCacheTicks);
             Scribe_Values.Look(ref advThreatWaitTicks, "advThreatWaitTicks", DefaultThreatWaitTicks);
             Scribe_Values.Look(ref advHeavyEvaluationsPerTick, "advHeavyEvaluationsPerTick", DefaultHeavyEvaluationsPerTick);
+            Scribe_Values.Look(ref advPathAvoidCost, "advPathAvoidCost", DefaultPathAvoidCost);
             Scribe_Values.Look(ref devShowThreatOverlay, "devShowThreatOverlay", false);
             if (Scribe.mode == LoadSaveMode.PostLoadInit) ClampAdvanced();
         }
@@ -284,6 +290,8 @@ namespace SmartAIFramework
             advThreatWaitTicks = (int)list.Slider(advThreatWaitTicks, 30f, 120f);
             list.Label($"Heavy evaluations per tick: {advHeavyEvaluationsPerTick}");
             advHeavyEvaluationsPerTick = (int)list.Slider(advHeavyEvaluationsPerTick, 1f, 10f);
+            list.Label(advPathAvoidCost == 0 ? "Path avoidance of shooter reach: off" : $"Path avoidance of shooter reach: {advPathAvoidCost} per cell (0 = off)");
+            advPathAvoidCost = (int)list.Slider(advPathAvoidCost, 0f, MaxPathAvoidCost);
             ClampAdvanced();
 
             if (list.ButtonText("Reset advanced values to defaults"))

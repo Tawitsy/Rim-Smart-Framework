@@ -201,6 +201,43 @@ namespace SmartAIFramework.Patches
     }
 
     [HarmonyPatchCategory("Combat")]
+    [HarmonyPatch]
+    public static class Patch_PathFinder_CreateRequest_ThreatCost
+    {
+        public static System.Reflection.MethodBase TargetMethod()
+        {
+            return AccessTools.Method(typeof(PathFinder), nameof(PathFinder.CreateRequest), new[]
+            {
+                typeof(IntVec3), typeof(LocalTargetInfo), typeof(IntVec3?), typeof(TraverseParms), typeof(PathFinderCostTuning?),
+                typeof(PathEndMode), typeof(Pawn), typeof(PathRequest.IPathGridCustomizer)
+            });
+        }
+
+        public static void Prefix(Pawn pawn, ref PathRequest.IPathGridCustomizer customizer)
+        {
+            if (customizer != null || pawn == null)
+                return;
+            ThreatMap threats = ThreatMap.TryGet(pawn.Map);
+            if (threats == null || !threats.AnyActive)
+                return;
+            if (SmartAIMod.Settings.advPathAvoidCost <= 0 || PawnStateTracker.ObserveOnly)
+                return;
+            if (!pawn.IsColonist || pawn.Drafted)
+                return;
+            Job current = pawn.CurJob;
+            if (current != null && current.playerForced)
+                return;
+            if (!ThreatMap.IsEligible(pawn))
+                return;
+            ThreatPathCustomizer layer = threats.PathCustomizer;
+            if (!layer.CanRebuild)
+                return;
+            layer.EnsureFresh();
+            customizer = layer;
+        }
+    }
+
+    [HarmonyPatchCategory("Combat")]
     [HarmonyPatch(typeof(CompExplosive), nameof(CompExplosive.StopWick))]
     public static class Patch_CompExplosive_StopWick
     {
