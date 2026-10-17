@@ -1,3 +1,4 @@
+using SmartAIFramework.Data;
 using Verse;
 using Verse.AI;
 
@@ -51,6 +52,8 @@ namespace SmartAIFramework.Decisions
                 job.expiryInterval = jobExpiryTicks;
                 job.checkOverrideOnExpire = true;
             }
+            if (pawn != null)
+                PawnStateTracker.GetOrCreate(pawn).lastIssuedJobId = job.loadID;
             return job;
         }
     }

@@ -90,7 +90,34 @@ namespace SmartAIFramework.Evaluation
             max = comfortMax;
         }
 
-        public static float GetEnvironmentalRisk(Pawn pawn, IntVec3 cell, Map map, JobDef jobDef = null)
+        private const float ToxicBaseRisk = 85f;
+
+        private static int toxicPawnId = -1;
+        private static int toxicTick = -1;
+        private static float toxicFactor;
+
+        public static float GetToxicFactor(Pawn pawn)
+        {
+            int now = Find.TickManager?.TicksGame ?? 0;
+            if (pawn.thingIDNumber != toxicPawnId || now != toxicTick)
+            {
+                toxicPawnId = pawn.thingIDNumber;
+                toxicTick = now;
+                if (pawn.kindDef != null && pawn.kindDef.immuneToGameConditionEffects)
+                {
+                    toxicFactor = 0f;
+                }
+                else
+                {
+                    float resistance = Mathf.Max(1f - pawn.GetStatValue(StatDefOf.ToxicResistance), 0f);
+                    float environment = Mathf.Max(1f - pawn.GetStatValue(StatDefOf.ToxicEnvironmentResistance), 0f);
+                    toxicFactor = resistance * environment;
+                }
+            }
+            return toxicFactor;
+        }
+
+        public static float GetEnvironmentalRisk(Pawn pawn, IntVec3 cell, Map map)
         {
             if (pawn == null || map == null || !cell.InBounds(map)) return 0f;
 
@@ -104,16 +131,8 @@ namespace SmartAIFramework.Evaluation
                 if (condMgr.ConditionIsActive(GameConditionDefOf.ToxicFallout) ||
                     (ModsConfig.BiotechActive && condMgr.ConditionIsActive(GameConditionDefOf.NoxiousHaze)))
                 {
-                    if (hazard < 85f) hazard = 85f;
-                }
-            }
-
-            if (jobDef == JobDefOf.Clean && map.weatherManager?.curWeather != null && map.weatherManager.curWeather.rainRate > 0.1f)
-            {
-                TerrainDef terrain = cell.GetTerrain(map);
-                if (terrain != null && !terrain.IsFloor && hazard < 80f)
-                {
-                    hazard = 80f;
+                    float toxicRisk = ToxicBaseRisk * GetToxicFactor(pawn);
+                    if (hazard < toxicRisk) hazard = toxicRisk;
                 }
             }
 

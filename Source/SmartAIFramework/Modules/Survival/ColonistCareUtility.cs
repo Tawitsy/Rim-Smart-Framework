@@ -41,6 +41,14 @@ namespace SmartAIFramework.Work
             return any;
         }
 
+        public static bool IsPlayerControlled(Pawn pawn)
+        {
+            if (pawn.Drafted || !PawnStateTracker.CanActAutonomously(pawn))
+                return true;
+
+            return PawnStateTracker.HasPlayerOrderNowOrQueued(pawn);
+        }
+
         public static bool NeedsEarlyRescue(Pawn patient)
         {
             if (!SmartAIMod.Settings.buddyEmpathyAssistance || PawnStateTracker.ObserveOnly ||
@@ -48,6 +56,9 @@ namespace SmartAIFramework.Work
                 return false;
 
             if (patient.Faction != Faction.OfPlayer || patient.InBed() || patient.Drafted)
+                return false;
+
+            if (IsPlayerControlled(patient))
                 return false;
 
             JobDef curDef = patient.CurJob?.def;

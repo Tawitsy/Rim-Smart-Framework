@@ -35,7 +35,7 @@ namespace SmartAIFramework.Work
             if (!target.IsValid)
                 return false;
 
-            return IsHazardousAt(pawn, target.Cell, target.Thing, job.def);
+            return IsHazardousAt(pawn, target.Cell, target.Thing);
         }
 
         public static bool IsRoutineJobInThreatReach(Pawn pawn, Job job)
@@ -71,10 +71,20 @@ namespace SmartAIFramework.Work
         {
             if (pawn == null || target == null || pawn.Map == null || !target.Spawned)
                 return false;
-            return IsHazardousAt(pawn, target.Position, target, jobDefOrNull);
+            return IsHazardousAt(pawn, target.Position, target);
         }
 
-        private static bool IsHazardousAt(Pawn pawn, IntVec3 targetCell, Thing targetThing, JobDef jobDef)
+        public static bool IsRainWashedFilth(Thing t)
+        {
+            if (!(t is Filth) || t.def.filth == null || !t.def.filth.rainWashes || !t.Spawned)
+                return false;
+            Map map = t.Map;
+            if (map == null || t.Position.Roofed(map))
+                return false;
+            return map.weatherManager.RainRate > 0.1f;
+        }
+
+        private static bool IsHazardousAt(Pawn pawn, IntVec3 targetCell, Thing targetThing)
         {
             Map map = pawn.Map;
             if (!targetCell.InBounds(map))
@@ -82,7 +92,7 @@ namespace SmartAIFramework.Work
 
             if (SmartAIMod.Settings.environmentalHazardProtection && !targetCell.Roofed(map))
             {
-                float envRisk = SurvivalUtility.GetEnvironmentalRisk(pawn, targetCell, map, jobDef);
+                float envRisk = SurvivalUtility.GetEnvironmentalRisk(pawn, targetCell, map);
                 if (envRisk >= SmartAIMod.Settings.hazardSensitivity)
                     return true;
             }

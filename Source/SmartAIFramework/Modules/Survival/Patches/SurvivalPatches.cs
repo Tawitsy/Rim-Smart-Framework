@@ -130,9 +130,33 @@ namespace SmartAIFramework.Patches
 
                 Job job = JobMaker.MakeJob(JobDefOf.TakeToBedToOperate, patient, bed);
                 job.count = 1;
+                PawnStateTracker.GetOrCreate(pawn).lastIssuedJobId = job.loadID;
                 __result = job;
                 if (Data.SmartLog.IsEnabled)
                     Data.SmartLog.Decision("EarlyRescue", pawn, $"carrying {patient.LabelShort} to {bed.LabelShort} at {bed.Position}");
+            }
+        }
+    }
+
+    [HarmonyPatchCategory("Survival")]
+    [HarmonyPatch(typeof(JobDriver_TakeToBed), "MakeNewToils")]
+    public static class Patch_JobDriver_TakeToBed_MakeNewToils
+    {
+        public static IEnumerable<Toil> Postfix(IEnumerable<Toil> __result, JobDriver_TakeToBed __instance)
+        {
+            foreach (Toil toil in __result)
+            {
+                if (toil.debugName == "StartCarryThing" || toil.debugName == "GotoThing")
+                {
+                    Pawn takee = __instance.job?.targetA.Thing as Pawn;
+                    if (takee != null && __instance.job.def == JobDefOf.TakeToBedToOperate)
+                    {
+                        toil.AddFailCondition(() => takee.Spawned && !takee.Downed && !PawnStateTracker.ObserveOnly &&
+                                                    takee.Faction == Faction.OfPlayer && !takee.InMentalState &&
+                                                    ColonistCareUtility.IsPlayerControlled(takee));
+                    }
+                }
+                yield return toil;
             }
         }
     }

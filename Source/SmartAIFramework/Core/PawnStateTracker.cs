@@ -49,6 +49,8 @@ namespace SmartAIFramework.Data
 
         public Proposal pendingProposal;
 
+        public int lastIssuedJobId = -1;
+
         public int committedUntilTick;
         public DecisionTier committedTier = DecisionTier.Routine;
         public float committedScore;
@@ -100,6 +102,11 @@ namespace SmartAIFramework.Data
         public static bool ObserveOnly => SmartAIMod.Settings != null && SmartAIMod.Settings.observeOnly;
 
         public static int Now => Find.TickManager?.TicksGame ?? 0;
+
+        public static bool HasPlayerOrderNowOrQueued(Pawn pawn)
+        {
+            return PawnUtility.PlayerForcedJobNowOrSoon(pawn) || (pawn.jobs?.jobQueue != null && pawn.jobs.jobQueue.AnyPlayerForced);
+        }
 
         public PawnStateTracker(Game game)
         {

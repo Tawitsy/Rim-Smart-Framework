@@ -194,7 +194,7 @@ namespace SmartAIFramework.Patches
                 Pawn p = c.GetFirstPawn(map);
                 if (p != null && p.IsColonist && !p.Dead && !p.Downed)
                 {
-                    CombatUtility.EvacuateBlastRadius(p, origin, radius + 2f);
+                    CombatUtility.EvacuateBlastRadius(p, parent, radius + 2f, __instance.Props.explosiveDamageType);
                 }
             }
         }

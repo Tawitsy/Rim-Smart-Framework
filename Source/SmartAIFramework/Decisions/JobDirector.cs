@@ -15,6 +15,29 @@ namespace SmartAIFramework.Decisions
 
         private static bool flushAfterCast;
 
+        public static bool IsVanillaExplosionFlee(Job job, ThinkNode source = null)
+        {
+            return (source ?? job?.jobGiver) is JobGiver_FleePotentialExplosion;
+        }
+
+        public static bool RequestVanillaExplosionResponse(Pawn pawn, Thing exploder, float safeRadius)
+        {
+            if (pawn?.mindState == null || pawn.jobs == null || exploder == null)
+                return false;
+            if (pawn.Drafted || PawnStateTracker.HasPlayerOrderNowOrQueued(pawn) || !PawnStateTracker.CanActAutonomously(pawn))
+                return false;
+            if (IsProtectedIgnoringExplosionFlee(pawn, pawn.CurJob))
+                return false;
+            if (pawn.mindState.knownExploder != exploder)
+            {
+                pawn.mindState.knownExploder = exploder;
+                pawn.jobs.CheckForJobOverride();
+            }
+            Job cur = pawn.CurJob;
+            return cur != null && IsVanillaExplosionFlee(cur) &&
+                   cur.targetA.Cell.DistanceToSquared(exploder.Position) >= safeRadius * safeRadius;
+        }
+
         public static void Reset()
         {
             interruptQueue.Clear();
@@ -28,6 +51,11 @@ namespace SmartAIFramework.Decisions
         }
 
         public static bool IsProtectedFromInterrupt(Pawn pawn, Job curJob)
+        {
+            return IsProtectedIgnoringExplosionFlee(pawn, curJob) || IsVanillaExplosionFlee(curJob);
+        }
+
+        private static bool IsProtectedIgnoringExplosionFlee(Pawn pawn, Job curJob)
         {
             if (pawn.IsBurning() || pawn.carryTracker?.CarriedThing != null)
                 return true;
@@ -101,9 +129,15 @@ namespace SmartAIFramework.Decisions
                 return false;
             }
 
-            if (IsProtectedFromInterrupt(pawn, curJob))
+            if (IsProtectedIgnoringExplosionFlee(pawn, curJob))
             {
                 blockedReason = "burning, carrying, or in a vanilla emergency job";
+                return false;
+            }
+
+            if (IsVanillaExplosionFlee(curJob) && p.behaviorId != BehaviorIds.BlastEvac)
+            {
+                blockedReason = "fleeing a known explosive";
                 return false;
             }
 
@@ -203,6 +237,9 @@ namespace SmartAIFramework.Decisions
 
         public static void ApplyAtDecision(Pawn pawn, ref ThinkResult result)
         {
+            if (IsVanillaExplosionFlee(result.Job, result.SourceNode))
+                return;
+
             Job discarded = result.Job;
             if (Arbiter.TryResolveAtDecision(pawn, discarded, out Job replacement))
             {
@@ -217,6 +254,7 @@ namespace SmartAIFramework.Decisions
                 Job wait = JobMaker.MakeJob(JobDefOf.Wait_Wander);
                 wait.expiryInterval = ThreatWaitTicks;
                 wait.checkOverrideOnExpire = true;
+                PawnStateTracker.GetOrCreate(pawn).lastIssuedJobId = wait.loadID;
                 ReleaseDiscarded(pawn, discarded, result);
                 DecisionLog.Record(pawn, BehaviorIds.ThreatWait, DecisionTier.Survival, 0f, DecisionOutcome.Vetoed, ThreatWaitReason);
                 result = new ThinkResult(wait, result.SourceNode, result.Tag, fromQueue: false);

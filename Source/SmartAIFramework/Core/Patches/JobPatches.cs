@@ -19,6 +19,24 @@ namespace SmartAIFramework.Patches
         }
     }
 
+    [HarmonyPatch(typeof(Pawn_JobTracker), nameof(Pawn_JobTracker.TryOpportunisticJob))]
+    public static class Patch_JobTracker_TryOpportunisticJob_SkipModJobs
+    {
+        public static bool Prefix(Pawn ___pawn, Job job, ref Job __result)
+        {
+            if (job == null || ___pawn == null)
+                return true;
+            if (!JobDirector.IsVanillaExplosionFlee(job))
+            {
+                PawnTacticalState state = PawnStateTracker.TryGet(___pawn);
+                if (state == null || state.lastIssuedJobId != job.loadID)
+                    return true;
+            }
+            __result = null;
+            return false;
+        }
+    }
+
     [HarmonyPatch(typeof(Pawn_JobTracker), nameof(Pawn_JobTracker.StartJob))]
     public static class Patch_JobTracker_StartJob
     {

@@ -553,22 +553,32 @@ namespace SmartAIFramework.Combat
             }
         }
 
-        public static void EvacuateBlastRadius(Pawn pawn, IntVec3 epicenter, float safeRadius)
+        public static void EvacuateBlastRadius(Pawn pawn, Thing exploder, float safeRadius, DamageDef damage)
         {
-            if (pawn == null || !PawnStateTracker.CanAssist(pawn)) return;
+            if (pawn == null || exploder == null || !PawnStateTracker.CanAssist(pawn)) return;
             if (pawn.Drafted && !SmartAIMod.Settings.allowDraftedKitingAssist) return;
+            IntVec3 epicenter = exploder.Position;
             if (!pawn.Position.InHorDistOf(epicenter, safeRadius)) return;
 
             Map map = pawn.Map;
             if (map == null) return;
 
+            if (damage != null && !damage.ExternalViolenceFor(pawn)) return;
+            if (!GenSight.LineOfSight(epicenter, pawn.Position, map, skipFirstCell: true)) return;
+            if (PawnStateTracker.HasPlayerOrderNowOrQueued(pawn)) return;
+
+            if (!pawn.Drafted && safeRadius <= 9f && (pawn.Position - epicenter).LengthHorizontalSquared <= 81 &&
+                JobDirector.RequestVanillaExplosionResponse(pawn, exploder, safeRadius))
+                return;
+
             IntVec3 bestCell = IntVec3.Invalid;
-            float maxDistSq = -1f;
+            float minPawnDistSq = float.MaxValue;
             float safeRadiusSq = safeRadius * safeRadius;
             District myDistrict = pawn.GetDistrict();
             IntVec3[] pattern = GenRadial.RadialPattern;
+            int cellCount = GenRadial.NumCellsInRadius(Mathf.Min(safeRadius + 1.5f, GenRadial.MaxRadialPatternRadius - 1f));
 
-            for (int i = 1; i < 37; i++)
+            for (int i = 1; i < cellCount; i++)
             {
                 IntVec3 c = pawn.Position + pattern[i];
                 if (!c.InBounds(map) || !c.Walkable(map) || c.Impassable(map) || c.ContainsTrap(map))
@@ -578,16 +588,21 @@ namespace SmartAIFramework.Combat
                 if (c.GetDangerFor(pawn, map) == Danger.Deadly)
                     continue;
 
-                float distSq = c.DistanceToSquared(epicenter);
-                if (distSq >= safeRadiusSq && distSq > maxDistSq)
+                if (c.DistanceToSquared(epicenter) < safeRadiusSq)
+                    continue;
+
+                float pawnDistSq = pattern[i].LengthHorizontalSquared;
+                if (pawnDistSq < minPawnDistSq)
                 {
-                    maxDistSq = distSq;
+                    minPawnDistSq = pawnDistSq;
                     bestCell = c;
                 }
             }
 
             if (bestCell.IsValid && bestCell != pawn.Position && pawn.CanReach(bestCell, PathEndMode.OnCell, Danger.Deadly))
             {
+                float ticksPerCell = Mathf.Max(30f, pawn.TicksPerMoveCardinal) * 1.5f;
+                int walkTicks = Mathf.CeilToInt(Mathf.Sqrt(minPawnDistSq) * ticksPerCell) + 60;
                 bool accepted = Arbiter.Submit(new Proposal
                 {
                     pawn = pawn,
@@ -596,7 +611,7 @@ namespace SmartAIFramework.Combat
                     score = 100f,
                     jobDef = JobDefOf.Goto,
                     target = bestCell,
-                    jobExpiryTicks = 90,
+                    jobExpiryTicks = walkTicks,
                     actuation = Actuation.Interrupt,
                     validUntilTick = PawnStateTracker.Now + 60,
                     reason = "explosive about to blow",

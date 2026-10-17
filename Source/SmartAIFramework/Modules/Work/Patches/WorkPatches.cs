@@ -75,6 +75,15 @@ namespace SmartAIFramework.Patches
                 return false;
             }
 
+            if (!PawnStateTracker.ObserveOnly && SmartAIMod.Settings.commonSenseHazardJobs && __instance.def != null && __instance.def.workType == WorkTypeDefOf.Cleaning &&
+                WorkUtility.IsRainWashedFilth(t))
+            {
+                if (SmartLog.IsEnabled)
+                    SmartLog.Decision("RainWash", pawn, $"skipped {t.LabelShort}: rain is washing it away");
+                __result = false;
+                return false;
+            }
+
             if (ShouldRefuseHazardousWork(__instance, pawn, t))
             {
                 if (SmartLog.IsEnabled)
@@ -143,7 +152,12 @@ namespace SmartAIFramework.Patches
         {
             if (__result != null || finalizerJob != null || ___pawn == null || job == null)
                 return;
+            if (job.def == null || !job.def.allowOpportunisticPrefix || job.playerForced || ___pawn.Downed)
+                return;
             if (!PawnStateTracker.CanActAutonomously(___pawn))
+                return;
+            PawnTacticalState issuer = PawnStateTracker.TryGet(___pawn);
+            if (issuer != null && issuer.lastIssuedJobId == job.loadID)
                 return;
             if (___pawn.jobs?.jobQueue != null && ___pawn.jobs.jobQueue.Count > 0)
                 return;
