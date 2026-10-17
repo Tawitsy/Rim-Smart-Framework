@@ -57,8 +57,81 @@ namespace SmartAIFramework.Patches
         }
     }
 
+    [HarmonyPatchCategory("Work")]
+    [HarmonyPatch(typeof(WorkGiver_Scanner), nameof(WorkGiver_Scanner.HasJobOnCell))]
+    public static class Patch_WorkGiver_Scanner_HasJobOnCell
+    {
+        [HarmonyPriority(Priority.Low)]
+        public static bool Prefix(WorkGiver_Scanner __instance, Pawn pawn, IntVec3 c, bool forced, ref bool __result)
+        {
+            return WorkGateFilter.RunCell(__instance, pawn, c, forced, ref __result);
+        }
+    }
+
+    [HarmonyPatchCategory("Work")]
+    [HarmonyPatch]
+    public static class Patch_WorkGiver_Overrides_HasJobOnCell
+    {
+        private static readonly string[] TargetTypeNames =
+        {
+            "RimWorld.WorkGiver_BuildRoof",
+            "RimWorld.WorkGiver_ClearPollution",
+            "RimWorld.WorkGiver_ClearSnowOrSand",
+            "RimWorld.WorkGiver_ConstructAffectFloor",
+            "RimWorld.WorkGiver_ConstructRemoveFloor",
+            "RimWorld.WorkGiver_ConstructRemoveFoundation",
+            "RimWorld.WorkGiver_ConstructSmoothWall",
+            "RimWorld.WorkGiver_Fish",
+            "RimWorld.WorkGiver_GrowerHarvest",
+            "RimWorld.WorkGiver_PaintFloor",
+            "RimWorld.WorkGiver_RemovePaintFloor",
+            "RimWorld.WorkGiver_RemoveRoof",
+        };
+
+        public static IEnumerable<MethodBase> TargetMethods()
+        {
+            for (int i = 0; i < TargetTypeNames.Length; i++)
+            {
+                System.Type type = AccessTools.TypeByName(TargetTypeNames[i]);
+                MethodInfo method = type != null ? AccessTools.DeclaredMethod(type, nameof(WorkGiver_Scanner.HasJobOnCell)) : null;
+                if (method != null)
+                    yield return method;
+            }
+        }
+
+        [HarmonyPriority(Priority.Low)]
+        public static bool Prefix(WorkGiver_Scanner __instance, Pawn pawn, IntVec3 c, bool forced, ref bool __result)
+        {
+            return WorkGateFilter.RunCell(__instance, pawn, c, forced, ref __result);
+        }
+    }
+
     internal static class WorkGateFilter
     {
+        public static bool RunCell(WorkGiver_Scanner scanner, Pawn pawn, IntVec3 cell, bool forced, ref bool __result)
+        {
+            if (forced) return true;
+
+            Map map = pawn.Map;
+            ThreatMap threats = ThreatMap.TryGet(map);
+            if (threats == null || !threats.AnyActive) return true;
+
+            if (!SmartAIMod.Settings.commonSenseHazardJobs || PawnStateTracker.ObserveOnly) return true;
+
+            WorkGiverDef def = scanner.def;
+            if (def == null || def.emergency) return true;
+            if (!ThreatMap.IsEligible(pawn) || !cell.InBounds(map)) return true;
+
+            Region region = cell.GetRegion(map);
+            bool inReach = region != null ? threats.RegionInReach(region) : threats.IsInReach(cell, pawn);
+            if (!inReach) return true;
+
+            if (SmartLog.IsEnabled)
+                SmartLog.Decision("HazardFilter", pawn, $"refused {def.defName} on cell {cell}: inside a shooter's reach");
+            __result = false;
+            return false;
+        }
+
         public static bool Run(WorkGiver_Scanner __instance, Pawn pawn, Thing t, bool forced, ref bool __result)
         {
             if (forced) return true;

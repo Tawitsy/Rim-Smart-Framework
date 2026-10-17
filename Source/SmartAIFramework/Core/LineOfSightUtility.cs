@@ -7,7 +7,7 @@ namespace SmartAIFramework.Grid
 {
     public static class LineOfSightUtility
     {
-        public static bool HasFriendlyInLineOfFire(Map map, Pawn shooter, IntVec3 from, IntVec3 to, float blastRadius)
+        public static bool HasFriendlyInLineOfFire(Map map, Thing shooter, IntVec3 from, IntVec3 to, float blastRadius)
         {
             if (map == null || shooter == null) return false;
 
@@ -26,14 +26,14 @@ namespace SmartAIFramework.Grid
             return false;
         }
 
-        public static bool IsProtectedBystander(Pawn p, Pawn shooter, bool includeDowned = false)
+        public static bool IsProtectedBystander(Pawn p, Thing shooter, bool includeDowned = false)
         {
             if ((p.Downed && !includeDowned) || p.HostileTo(shooter))
                 return false;
             return p.Faction != null || p.RaceProps.Humanlike;
         }
 
-        public static bool HasFriendlyAlongSegment(Map map, Pawn shooter, IntVec3 from, IntVec3 to)
+        public static bool HasFriendlyAlongSegment(Map map, Thing shooter, IntVec3 from, IntVec3 to)
         {
             int x0 = from.x;
             int z0 = from.z;
@@ -84,7 +84,7 @@ namespace SmartAIFramework.Grid
             return false;
         }
 
-        public static bool HasFriendlyOrVolatileInRadius(Map map, Pawn shooter, IntVec3 center, float radius)
+        public static bool HasFriendlyOrVolatileInRadius(Map map, Thing shooter, IntVec3 center, float radius)
         {
             CellIndices indices = map.cellIndices;
             ThingGrid thingGrid = map.thingGrid;

@@ -49,9 +49,40 @@ namespace SmartAIFramework.Combat
             return CombatRole.Combatant;
         }
 
+        private static bool CanTurretFireSafely(Verb verb)
+        {
+            Building_Turret turret = verb.Caster as Building_Turret;
+            if (turret == null || turret.Faction != Faction.OfPlayer || !turret.Spawned || PawnStateTracker.ObserveOnly)
+                return true;
+            if (turret.ForcedTarget.IsValid)
+                return true;
+
+            LocalTargetInfo target = verb.CurrentTarget;
+            if (!target.IsValid)
+                return true;
+
+            VerbProfile profile = VerbProfileCache.Get(verb);
+            if (profile == null || !profile.IsHostile)
+                return true;
+
+            float blastRadius = profile.forcedMissRadius + profile.aoeRadius;
+            if (!LineOfSightUtility.HasFriendlyInLineOfFire(turret.Map, turret, turret.Position, target.Cell, blastRadius))
+                return true;
+
+            if (SmartLog.IsEnabled)
+                SmartLog.Message("FiringDiscipline", $"{turret.LabelShort} held fire at {target.Cell} (friendly in line/blast)");
+            return false;
+        }
+
         public static bool CanFireSafely(Verb verb)
         {
-            if (!SmartAIMod.Settings.combatFiringDiscipline || verb == null)
+            if (verb == null)
+                return true;
+
+            if (verb.CasterPawn == null)
+                return !SmartAIMod.Settings.combatTurretDiscipline || CanTurretFireSafely(verb);
+
+            if (!SmartAIMod.Settings.combatFiringDiscipline)
                 return true;
 
             Pawn shooter = verb.CasterPawn;

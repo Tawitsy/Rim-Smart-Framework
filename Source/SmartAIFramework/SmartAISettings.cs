@@ -17,6 +17,7 @@ namespace SmartAIFramework
         public bool compatKeepOwnOnRouteHauling = false;
 
         public bool combatFiringDiscipline = true;
+        public bool combatTurretDiscipline = false;
         public bool combatMuzzleDiscipline = true;
         public bool combatSmartCover = true;
         public bool combatRangedKiting = true;
@@ -110,6 +111,7 @@ namespace SmartAIFramework
             Scribe_Values.Look(ref moduleWorkEnabled, "moduleWorkEnabled", true);
             Scribe_Values.Look(ref moduleStructureEnabled, "moduleStructureEnabled", true);
             Scribe_Values.Look(ref combatFiringDiscipline, "combatFiringDiscipline", true);
+            Scribe_Values.Look(ref combatTurretDiscipline, "combatTurretDiscipline", false);
             Scribe_Values.Look(ref combatMuzzleDiscipline, "combatMuzzleDiscipline", true);
             Scribe_Values.Look(ref combatSmartCover, "combatSmartCover", true);
             Scribe_Values.Look(ref combatRangedKiting, "combatRangedKiting", true);
@@ -175,9 +177,17 @@ namespace SmartAIFramework
             listedBreaks.Sort((a, b) =>
             {
                 int byIntensity = b.intensity.CompareTo(a.intensity);
-                return byIntensity != 0 ? byIntensity : string.Compare(a.LabelCap.ToString(), b.LabelCap.ToString(), System.StringComparison.OrdinalIgnoreCase);
+                return byIntensity != 0 ? byIntensity : string.Compare(BreakLabel(a), BreakLabel(b), System.StringComparison.OrdinalIgnoreCase);
             });
             return listedBreaks;
+        }
+
+        private static string BreakLabel(MentalBreakDef def)
+        {
+            string text = def.label;
+            if (string.IsNullOrEmpty(text)) text = def.mentalState?.label;
+            if (string.IsNullOrEmpty(text)) text = def.defName;
+            return text.CapitalizeFirst();
         }
 
         private static readonly char Bullet = (char)0x2022;
@@ -234,7 +244,7 @@ namespace SmartAIFramework
                     GUI.color = Color.white;
                 }
 
-                string label = def.LabelCap.ToString();
+                string label = BreakLabel(def);
                 ModContentPack pack = def.modContentPack;
                 if (pack != null && !pack.IsCoreMod) label += " (" + pack.Name + ")";
 
@@ -335,6 +345,8 @@ namespace SmartAIFramework
             Text.Font = GameFont.Small;
             list.CheckboxLabeled("Avoid friendly fire", ref combatFiringDiscipline,
                 "Pawns hold fire or sidestep if an ally is directly blocking their line of sight.");
+            list.CheckboxLabeled("Turrets and mortars hold fire when an ally is in the line or blast", ref combatTurretDiscipline,
+                "Your turrets and mortars wait while a colonist or ally stands in the line of fire or inside the blast. Mortars will fire much less often near allies. A turret you aim by hand ignores this.");
             list.CheckboxLabeled("Tactical fallback for ranged pawns", ref combatRangedKiting,
                 "Ranged pawns step back 2-4 tiles when rushed by melee enemies instead of standing still.");
             list.CheckboxLabeled("Assist drafted pawns with tactical fallback", ref allowDraftedKitingAssist,

@@ -45,7 +45,9 @@ namespace SmartAIFramework.Work
             LocalTargetInfo targetB = job.targetB;
             bool aUsable = target != null && target.Spawned && target.Map == pawn.Map;
             bool bUsable = targetB.IsValid && (!targetB.HasThing || (targetB.Thing.Spawned && targetB.Thing.Map == pawn.Map));
-            if (!aUsable && !bUsable)
+            IntVec3 cellA = job.targetA.Cell;
+            bool aCell = job.targetA.IsValid && !job.targetA.HasThing && job.workGiverDef != null && !job.workGiverDef.emergency && cellA.InBounds(pawn.Map);
+            if (!aUsable && !bUsable && !aCell)
                 return false;
 
             ThreatMap threats = ThreatMap.TryGet(pawn.Map);
@@ -61,6 +63,8 @@ namespace SmartAIFramework.Work
                 return false;
 
             if (aUsable && threats.IsInReach(target.Position, pawn))
+                return true;
+            if (aCell && threats.IsInReach(cellA, pawn))
                 return true;
             if (!bUsable)
                 return false;
