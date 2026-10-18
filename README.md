@@ -1,219 +1,186 @@
 # Rim Smart Framework
 
-[![Version](https://img.shields.io/badge/version-v1.2.0--beta-orange.svg)](https://github.com/Tawitsy/Rim-Smart-Framework/releases)
-[![RimWorld 1.6 & 1.7](https://img.shields.io/badge/RimWorld-1.6%20%7C%201.7-brightgreen.svg)](https://rimworldgame.com/)
-[![Harmony](https://img.shields.io/badge/Dependency-Harmony-blue.svg)](https://github.com/pardeike/HarmonyRimWorld)
-[![Combat Extended](https://img.shields.io/badge/Compatibility-Combat%20Extended-orange.svg)](https://github.com/CombatExtended-Continued/CombatExtended)
-[![Wiki & Docs](https://img.shields.io/badge/Docs-GitHub%20Wiki-blueviolet.svg)](https://github.com/Tawitsy/Rim-Smart-Framework/wiki)
+[![Version](https://img.shields.io/badge/version-v1.3.0-blue.svg)](https://github.com/Tawitsy/Rim-Smart-Framework/releases)
+[![RimWorld](https://img.shields.io/badge/RimWorld-1.6%20%7C%201.7-brightgreen.svg)](#installation)
+[![Harmony](https://img.shields.io/badge/Requires-Harmony-blue.svg)](https://github.com/pardeike/HarmonyRimWorld)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Support on Ko-fi](https://img.shields.io/badge/Ko--fi-Support-ff5e5b.svg?logo=kofi&logoColor=white)](https://ko-fi.com/tawitsy)
 
-![Rim Smart Framework Preview](https://raw.githubusercontent.com/Tawitsy/Rim-Smart-Framework/07dfd00cc30a64c912b595cdac9033c84b58d7eb/About/Preview.png)
+**Less babysitting. More time to run your colony.**
 
-> ⚠️ **Status: Beta Testing**  
-> This mod is currently in active beta testing for **RimWorld 1.6 & 1.7**. Edge cases are actively being tested and refined. Please report any bugs or feedback via the [Issues](https://github.com/Tawitsy/Rim-Smart-Framework/issues) tab.
+Rim Smart Framework adds coordinated combat, survival, and everyday work behaviors to RimWorld. Colonists react to active shooting, avoid dangerous work, seek care for critical bleeding, and make practical choices about meals, hauling, and work areas.
 
-An event-driven decision framework for **RimWorld 1.6 & 1.7** that coordinates player-faction pawn survival, tactical positioning, and work filtering without per-tick polling.
+The framework shares danger information with vanilla decisions and coordinates its own actions through a central job director. Its reasoning runs on game events and existing decision points, without a separate per-tick polling loop.
 
----
+![Rim Smart Framework preview](About/Preview.png)
 
-## 1. Architecture & Execution Pipeline
+**Current version: 1.3.0.** Tested on RimWorld **1.6** and the **1.7 unstable branch**. See the [changelog](CHANGELOG.md) for release details and test coverage.
 
-Instead of scanning pawns or cells on tick intervals, the framework executes strictly on **Harmony Event Hooks** and **Vanilla Decision Points**:
+[Download](https://github.com/Tawitsy/Rim-Smart-Framework/releases) · [Features](#what-it-does) · [Installation](#installation) · [Compatibility](#mod-compatibility) · [Report a bug](#bug-reports) · [Developer reference](#for-developers)
+
+## What it does
+
+### Combat and survival
+
+- **Firing discipline:** checks allies in a pawn's shot line and blast area, holds unsafe shots, and can look for a sidestep. Explosive safety also considers the shooter and nearby explosive objects.
+- **Threat-aware movement:** shares active shooter danger with vanilla flee and work decisions. Path costs encourage undrafted colonists to take a detour around firing zones when one is practical.
+- **Cover and kiting:** colonists set to **Attack** can seek cover or step back from approaching melee attackers. Colonists set to **Flee** use vanilla flee behavior; **Ignore** retains that chosen response.
+- **Explosion response:** checks whether an explosive can harm the pawn and seeks a destination outside its blast, including large blasts.
+- **Medical urgency:** critically bleeding colonists can interrupt routine work to seek a bed or self-tend. Early rescue lets helpers carry eligible injured colonists to bed before they collapse.
+- **Environmental safety:** work checks account for fire, unsafe temperatures, and toxic fallout, including the pawn's toxic resistance. Predator hunting events can trigger an alert and retreat.
+- **Optional turret and mortar discipline:** holds automatic fire when an ally is in the line or blast. This option is **off by default**; manually assigned turret targets bypass this check.
+
+### Everyday work and base care
+
+- Clean nearby filth before cooking or surgery, and prefer food that is closer to spoiling.
+- Prepare for long trips by addressing hunger or rest, and pick up suitable items along the route.
+- Filter routine work at dangerous targets, including cell jobs such as sowing and roofing.
+- Skip outdoor cleaning when rain is already washing that type of filth away.
+- Prefer nearby work and reduce redundant task selection, with configurable delegation and room focus.
+- Keep storage and item drops off door tiles where the placement hooks apply; move idle destinations out of doorways.
+- Favor construction positions with an exit and unroofed positions when deconstructing supports. These are local positioning checks, not a full roof-collapse simulation.
+- Avoid disturbing sleeping colonists through work and idle-destination checks.
+
+### Mental breaks
+
+- Tantrums avoid recognized explosives and storage containing them.
+- Choose which **Major** and **Extreme** mental breaks your colonists can receive, including modded breaks in the settings list. All are allowed by default.
+
+## Installation
+
+1. Install [Harmony](https://github.com/pardeike/HarmonyRimWorld).
+2. Download the mod package from [Releases](https://github.com/Tawitsy/Rim-Smart-Framework/releases) and extract it into your RimWorld `Mods` folder.
+3. Check that the folder contains `About/About.xml`, `1.6/Assemblies`, and `1.7/Assemblies`, without an extra nested copy of the mod folder.
+4. Enable **Harmony** and **Rim Smart Framework**, with Harmony loaded first, then restart RimWorld.
+5. Open **Options → Mod Settings → Rim Smart Framework** to configure features and inspect detected mods.
+
+The mod supports adding it to an existing save. Keep a backup when changing a save's mod list. Release packages are the simplest installation route; source builds are described [below](#building-from-source).
+
+## Settings and player control
+
+The five modules—**Combat, Survival, Work, Structure, and Mind**—can be enabled separately. Module changes require a restart: a disabled module's categorized patches are not installed, while shared core hooks remain available to the framework.
+
+Individual settings control firing discipline, cover, work filtering, hauling, medical care, mental breaks, and other behaviors. Important defaults and exceptions:
+
+- **Drafted assistance is enabled by default.** The “Assist drafted pawns with tactical fallback” setting permits limited assistance, including kiting and blast evacuation. Direct player movement orders are protected. Turn this setting off if you do not want these drafted movement assists.
+- **Forced fire is allowed by default.** The “Allow forced fire when drafted” option lets a drafted pawn's forced firing order bypass the pawn firing-safety check.
+- **Turret and mortar discipline is disabled by default.** Enable it separately from pawn firing discipline.
+- **Threat routing uses a path penalty.** It favors detours rather than making dangerous cells impassable; a route can still cross danger when alternatives are too costly or unavailable.
+- **Advanced controls require Development Mode.** They expose threat memory, reach bounds, cache timing, evaluation budgets, path penalties, and a threat overlay. The defaults are the values used for the reported tests.
+
+## Mod compatibility
+
+The compatibility registry contains **26 profiles**. The **Detected mods** section in settings distinguishes three kinds of support:
+
+| Integration | What RSF does |
+| --- | --- |
+| **While You're Up / Jobs of Opportunity — Yield** | Disables RSF's on-route hauling so the detected mod handles it. A setting lets you retain RSF's version. |
+| **Common Sense — Adapter** | Leaves clean-before-work behavior to Common Sense when it is enabled there. |
+| **Combat Extended — Adapter** | Integrates friendly-fire checks with CE's shot-line handling. |
+| **Perspective Shift — Adapter** | Excludes the directly controlled avatar from autonomous steering. |
+| **Dubs Bad Hygiene — Adapter** | Treats desperate bladder or thirst as a reason to leave shelter, alongside urgent vanilla needs. |
+| **Other recognized mods — Tested alongside** | Records that they were tested together; this label does not mean a dedicated adapter or automatic feature handoff. |
+
+The v1.3.0 test lists include **CAI 5000, Yayo's Combat 3, Smart Medicine, Simple Sidearms, Achtung!, Pick Up and Haul, Hospitality, Vanilla Expanded Framework, Vehicle Framework**, and others. The [changelog](CHANGELOG.md#v130) records the tested combinations.
+
+Compatibility depends on the versions, settings, and features in use. These tests do not establish that every combination is conflict-free or that RSF replaces every feature of another mod. **Save Our Ship 2 and fog-of-war mods have not been tested.** RSF currently reads threat information from game data without respecting fog-of-war visibility.
+
+## Performance and validation
+
+RSF uses event hooks, shared per-map danger data, cached profiles, and evaluation budgets to limit repeated work. It still performs work when events and vanilla queries occur; event-driven does not mean zero CPU cost.
+
+The [v1.3.0 release record](CHANGELOG.md#v130) reports:
+
+| Check | Recorded result |
+| --- | --- |
+| Automated in-game suite | 62 tests passing on both RimWorld 1.6 and the 1.7 unstable branch |
+| Colony stress runs | Two 3-day soaks and a 1-day dense raid soak, with no reported RSF errors, stuck pawns, or behavior oscillation |
+| Mod lists | A 117-mod list including Combat Extended, plus a separate popular-mod list without CE |
+| Benchmark scenario | 110 colonists and a 90-raider raid |
+| Measured mod self-time | About **0.12 ms/tick** during normal work and **0.13–0.21 ms/tick** during the raid |
+
+These timings measure the mod's own execution in the recorded scenario, not total game tick time or a guaranteed TPS gain. They are not a controlled comparison against a feature-equivalent collection of other mods.
+
+## Current limits
+
+- Shooter reach is an estimate bounded to **8–40 cells by default**, with line-of-sight checks and cached region danger. It is not an exact prediction of every projectile or modded ability.
+- A wander destination can still be selected inside a firing zone even when the route attempts to avoid it.
+- Long-range threats can require more than one vanilla flee step.
+- Path detours, local construction checks, and firing discipline reduce specific risks; they do not guarantee a safe outcome in every layout.
+- 1.7 coverage refers to the tested unstable branch. Later game updates require their own verification.
+
+## Bug reports
+
+Open a [GitHub issue](https://github.com/Tawitsy/Rim-Smart-Framework/issues) with:
+
+- Your RimWorld and RSF versions, active mod list, and relevant RSF settings.
+- What you expected, what happened, and steps to reproduce it.
+- `Player.log`, plus a save or short clip if it helps reproduce the behavior.
+- For pawn decision problems, the output of **Explain pawn decisions** if available.
+
+To inspect a pawn, enable **Development Mode**, open **Debug Actions → Rim Smart Framework → Explain pawn decisions**, and select the pawn. The report includes its current job, commitment, cooldowns, map alert state, and recent recorded decisions. The Advanced settings also provide a threat overlay.
+
+## For developers
+
+### Execution model
 
 ```mermaid
 flowchart LR
-    subgraph Sensors["1. Sensors (Core/Patches)"]
-        S1["StatePatches<br/>(SetStance, Downed, Kill)"]
-        S2["EventPatches<br/>(PostApplyDamage, DoClamor, Cast)"]
-        S3["JobPatches<br/>(StartJob, DetermineNextJob)"]
-    end
-
-    subgraph Blackboard["2. Blackboard (Core)"]
-        B1["TacticalGrid (short[])"]
-        B2["ThreatMap & ColonyAlert"]
-        B3["PawnStateTracker"]
-        B4["Verb / Thing Profile Caches"]
-    end
-
-    subgraph DecisionEngine["3. Decision Engine (Decisions)"]
-        M["Modules<br/>(Combat, Survival, Work, Structure)"]
-        A["Arbiter.Submit(Proposal)<br/>• 6-Tier Hierarchy<br/>• Hysteresis (1.25x + 10)<br/>• ≤ 3 Heavy Evals/Tick"]
-        J["JobDirector<br/>(Single Job Writer)"]
-    end
-
-    subgraph VanillaQueries["4. Vanilla Query Hooks"]
-        WF["WorkGateFilter (HasJobOnThing)<br/>• Target Suppression<br/>• Sleeping Courtesy<br/>• Hazard Refusal<br/>• Delegation & Room Priority"]
-        VD["Region.DangerFor &<br/>ShouldStartFleeing<br/>(Reads ThreatMap)"]
-    end
-
-    Sensors -->|"Record Facts"| Blackboard
-    Blackboard --> M
-    M -->|"Push / Pull Proposal"| A
-    A -->|"Approved"| J
-    Blackboard -.->|"O(1) Read"| WF
-    Blackboard -.->|"O(1) Read"| VD
+    E["Game events and action hooks"] --> S["Shared danger and pawn state"]
+    S --> B["Behavior proposals"]
+    B --> A["Arbiter: priority, commitment, budget"]
+    A --> J["JobDirector: job changes"]
+    S --> V["Vanilla danger, flee, work and path queries"]
 ```
 
-### Core Engineering Design
-1. **Zero Tick Polling:** No `Tick()`, `TickRare()`, `CompTick()`, or `IsHashIntervalTick()`. All timestamps (`PawnStateTracker.Now`) are evaluated lazily when events fire. Measured mod self-time in benchmark runs with 110 colonists and a 90-raider raid is **~0.16 ms/tick** during normal work and **~0.30–0.50 ms/tick** during raids.
-2. **Single Job Writer (`JobDirector`):** Behaviors and patches never call `StartJob` or `EndCurrentJob` directly. Every action is submitted as a `Proposal` to `Arbiter`, and only `JobDirector` mutates or vetoes pawn jobs.
-3. **Shared Danger State (`ThreatMap`):** Active hostile shooters are tracked in `ThreatMap`. Vanilla's `Region.DangerFor` and `SelfDefenseUtility.ShouldStartFleeing` read this state so colonists set to *Flee* use vanilla's `FleeAndCower` and avoid routing work, food, or wandering trips into active shooter reach, while colonists set to *Attack* use cover and kiting tactics.
-4. **Fault-Isolated Module Patching (`ModuleRegistry`):** Each module (`Combat`, `Survival`, `Work`, `Structure`) binds to its own `HarmonyPatchCategory`. Disabled modules apply zero patches on startup, and each patch class is applied individually so a broken target method disables only that specific patch class.
+The decision tiers are **PlayerOrder → VanillaEmergency → Survival → VanillaNeed → Tactical → Routine**, from highest to lowest priority. Interruption guards, commitments, and behavior cooldowns constrain proposals. Vanilla query filters also influence existing decisions without creating a separate job for every reaction.
 
----
+| Source area | Responsibility |
+| --- | --- |
+| [Core](Source/SmartAIFramework/Core) | Event hooks, pawn state, tactical grid, threat map, path costs, and cached profiles |
+| [Decisions](Source/SmartAIFramework/Decisions) | Proposals, arbitration, job changes, and decision diagnostics |
+| [Modules](Source/SmartAIFramework/Modules) | Combat, Survival, Work, Structure, and Mind; categorized Harmony patch registration |
+| [Compat](Source/SmartAIFramework/Compat) | Compatibility profiles and dedicated adapters |
+| [API](Source/SmartAIFramework/API/SmartAIApi.cs) | Hazard registration, danger queries, target suppression, and utility score overrides |
+| [SmartAISettings.cs](Source/SmartAIFramework/SmartAISettings.cs) | Feature defaults, saved settings, and configuration UI |
 
-## 2. Decision Tier Hierarchy & Anti-Oscillation
+### Modder API
 
-Every `Proposal` carries a `DecisionTier` (`0` = highest priority, `5` = lowest). A proposal can never override a current job or pending proposal of the same or higher priority tier unless it passes commitment hysteresis:
+The public API exposes `RegisterHazard`, `ClearHazard`, `GetDanger`, `GetVerbProfile`, `GetThingProfile`, `TicksUntilBleedOut`, `SuppressTarget`, and paired `RegisterScoreOverride` / `UnregisterScoreOverride` methods. See [SmartAIApi.cs](Source/SmartAIFramework/API/SmartAIApi.cs) for current signatures.
 
-```mermaid
-flowchart TD
-    T0["Tier 0: PlayerOrder<br/>Drafted pawns, playerForced jobs, Perspective Shift avatar"]
-    T1["Tier 1: VanillaEmergency<br/>ExtinguishSelf, Flee, FleeAndCower, GotoSafeTemperature, Burning, Carrying"]
-    T2["Tier 2: Survival<br/>Severe bleed self-triage (SelfTriageBehavior), superheated room escape, blast evacuation"]
-    T3["Tier 3: VanillaNeed<br/>Rest, food, medical tending, rescuing allies, firefighting"]
-    T4["Tier 4: Tactical<br/>Blocked-shot sidestep, firing-lane yield, melee kiting, cover positioning, predator retreat"]
-    T5["Tier 5: Routine<br/>Standard work filtered by WorkGateFilter, FIFO food, seating, doorway clearance"]
-
-    T0 --> T1 --> T2 --> T3 --> T4 --> T5
-```
-
-* **Commitment Hysteresis (`Arbiter`):** When a proposal executes, the pawn commits for `commitTicks`. During commitment, a new proposal on the same tier is rejected unless `newScore >= committedScore * 1.25f + 10f`.
-* **Per-Behavior Cooldowns:** Prevents rejected or completed behaviors (`Sidestep`, `Kite`, `PredatorRetreat`, etc.) from re-proposing on every consecutive event.
-
----
-
-## 3. Repository & Source Structure (For Developers)
-
-```text
-Source/SmartAIFramework/
-├── SmartAIMod.cs                 # Entry point, Harmony initialization, settings window
-├── SmartAISettings.cs            # Mod settings & per-module toggles (restart required)
-├── Core/                         # Layer 1: Shared Blackboard, Caches & Core Sensors
-│   ├── SmartModule.cs            # Base module contract & startup ModuleFlags snapshot
-│   ├── TacticalGrid.cs           # Per-map MapComponent with flat short[] cell arrays (O(1) reads)
-│   ├── ThreatMap.cs              # Active hostile shooter tracking & range/LOS expiration
-│   ├── ColonyAlert.cs            # Event-driven map state (Peace / Alert / Combat)
-│   ├── PawnStateTracker.cs       # Per-pawn tactical state, commitment, cooldowns & colony snapshots
-│   ├── LineOfSightUtility.cs     # Projectile path & friendly-fire obstruction solver
-│   ├── UtilityEvaluator.cs       # Benefit vs. NetCost scoring formula
-│   ├── VerbProfileCache.cs       # Reflection-cached weapon/ability inspection
-│   ├── ThingProfileCache.cs      # Cached item & explosive properties
-│   ├── SmartLog.cs               # Conditional debug logger
-│   └── Patches/                  # Uncategorized core sensor hooks
-│       ├── StatePatches.cs       # SetStance, MakeDowned, Kill, DeSpawn cleanup
-│       ├── EventPatches.cs       # TryCastNextBurstShot, PostApplyDamage, DoClamor
-│       └── JobPatches.cs         # StartJob & DetermineNextJob hooks
-├── Decisions/                    # Layer 2: Central Arbitration & Diagnostics
-│   ├── DecisionTier.cs           # 6-tier priority enum (PlayerOrder..Routine) & Actuation mode
-│   ├── Proposal.cs               # Action proposal data structure
-│   ├── Arbiter.cs                # Tier comparison, hysteresis, cooldowns & per-tick budget (≤ 3)
-│   ├── JobDirector.cs            # Exclusive job writer & interruption safety gates
-│   ├── DecisionLog.cs            # Fixed-size ring buffer (16 entries/pawn, 256 global)
-│   └── ExplainDebugAction.cs     # Dev-mode pawn inspector ("Explain pawn decisions")
-├── Modules/                      # Layer 3: Pluggable Domain Modules
-│   ├── ModuleRegistry.cs         # Fault-isolated per-category Harmony patching
-│   ├── Combat/                   # [HarmonyPatchCategory("Combat")]
-│   │   ├── CombatModule.cs, CombatUtility.cs, CoverFinder.cs, SafeCellFinder.cs, SoundAwarenessUtility.cs
-│   │   └── Patches/CombatPatches.cs
-│   ├── Survival/                 # [HarmonyPatchCategory("Survival")]
-│   │   ├── SurvivalModule.cs, SelfTriageBehavior.cs, ColonistCareUtility.cs, SurvivalUtility.cs
-│   │   └── Patches/SurvivalPatches.cs
-│   ├── Work/                     # [HarmonyPatchCategory("Work")]
-│   │   ├── WorkModule.cs, WorkUtility.cs, WorkDelegationUtility.cs
-│   │   └── Patches/WorkPatches.cs
-│   ├── Structure/                # [HarmonyPatchCategory("Structure")]
-│   │   ├── StructureModule.cs, StructureUtility.cs
-│   │   └── Patches/StructurePatches.cs
-│   └── Mind/                     # [HarmonyPatchCategory("Mind")]
-│       ├── MindModule.cs
-│       └── Patches/MindPatches.cs
-├── Compat/                       # Third-Party Mod Adapters (Reflected once at startup)
-│   ├── Compat_CombatExtended.cs  # CE projectile & line-of-sight integration
-│   ├── CommonSenseCompat.cs      # Prevents duplicate sanitation toils
-│   └── PerspectiveShiftCompat.cs # Treats player-controlled avatar as PlayerOrder tier
-└── API/                          # Public Modder Interface
-    └── SmartAIApi.cs             # Static C# helpers & AIThreatExtension DefModExtension
-```
-
----
-
-## 4. Developer API & In-Game Diagnostics
-
-### In-Game Debugging (`ExplainDebugAction`)
-Enable RimWorld **Development Mode**, open the **Debug Actions** menu under the **`Rim Smart Framework`** category, and select **`Explain pawn decisions`**. Clicking any pawn opens a dialog and logs its current job, commitment state, cooldowns, map alert level, and the last 16 recorded decisions from `DecisionLog`.
-
-### XML Hazard Declaration (`AIThreatExtension`)
-Other mods can declare custom hazardous objects in XML without C# dependencies:
+For a custom object, add this extension inside its `ThingDef`:
 
 ```xml
-<ThingDef ParentName="BuildingBase">
-  <defName>MyCustomUnstableCore</defName>
-  <modExtensions>
-    <li Class="SmartAIFramework.API.AIThreatExtension">
-      <hazardRadius>6.5</hazardRadius>
-      <dangerScore>80</dangerScore>
-    </li>
-  </modExtensions>
-</ThingDef>
+<modExtensions>
+  <li Class="SmartAIFramework.API.AIThreatExtension">
+    <hazardRadius>6.5</hazardRadius>
+    <dangerScore>80</dangerScore>
+  </li>
+</modExtensions>
 ```
 
-### C# Modder API (`SmartAIApi`)
-External C# mods can query tactical danger, register dynamic hazards, suppress targets, or inject custom score modifiers:
+This registers a hazard when the object spawns; `dangerScore` is converted into a grid weight rather than used as an exact cell-danger value. The extension requires RSF to be loaded, so optional integrations should conditionally apply their XML. For hazards that become active later, use the C# registration API and clear them when they end, before the source despawns.
 
-```csharp
-using SmartAIFramework.API;
+### Building from source
 
-// 1. Register or clear a dynamic hazard on the TacticalGrid
-SmartAIApi.RegisterHazard(thingSource, radius: 5.0f);
-SmartAIApi.ClearHazard(thingSource);
-
-// 2. Query cell danger (0..100) or bleed-out time
-float cellDanger = SmartAIApi.GetDanger(map, cell, pawn);
-int ticksLeft = SmartAIApi.TicksUntilBleedOut(pawn);
-
-// 3. Temporarily suppress a target Thing from routine work selection
-SmartAIApi.SuppressTarget(targetThing, durationTicks: 600);
-
-// 4. Register a custom utility score modifier
-SmartAIApi.RegisterScoreOverride((float utility, ActionEvalInput input) =>
-{
-    return utility;
-});
-```
-
----
-
-## 5. Wiki & Multi-Language Documentation
-
-Full user guides, behavior breakdowns, and compatibility details are hosted on the **[GitHub Wiki](https://github.com/Tawitsy/Rim-Smart-Framework/wiki)**:
-
-* 📖 **[Modules & Behaviors Guide](https://github.com/Tawitsy/Rim-Smart-Framework/wiki/Features)**
-* 🤝 **[Mod Compatibility & Benchmarks](https://github.com/Tawitsy/Rim-Smart-Framework/wiki/Compatibility)**
-* 🛠️ **[Modder API Reference](https://github.com/Tawitsy/Rim-Smart-Framework/wiki/Modder-API)**
-* 🌐 **Multi-Language Wiki:**  
-  [English](https://github.com/Tawitsy/Rim-Smart-Framework/wiki) | [Thai (ภาษาไทย)](https://github.com/Tawitsy/Rim-Smart-Framework/wiki/Home-TH) | [Simplified Chinese (简体中文)](https://github.com/Tawitsy/Rim-Smart-Framework/wiki/Home-ZH) | [Japanese (日本語)](https://github.com/Tawitsy/Rim-Smart-Framework/wiki/Home-JA) | [Korean (한국어)](https://github.com/Tawitsy/Rim-Smart-Framework/wiki/Home-KO) | [Russian (Русский)](https://github.com/Tawitsy/Rim-Smart-Framework/wiki/Home-RU)  
-  *(Note: Non-English wiki pages include AI-translated drafts. Community contributors and native speakers are welcome to submit improvements or additional translations.)*
-
----
-
-## 6. Installation & Building
-
-### Installation
-1. Download the latest release from [Releases](https://github.com/Tawitsy/Rim-Smart-Framework/releases) (or clone this repository).
-2. Extract into `.../Steam/steamapps/common/RimWorld/Mods/Rim Smart Framework`.
-3. Enable **Harmony** before **Rim Smart Framework**. *(Safe to add or remove mid-save).*
-
-### Building from Source
-Requires the **.NET SDK** (`net472`):
+The project targets **.NET Framework 4.7.2** (`net472`) and uses the .NET SDK. By default, NuGet supplies compile-time RimWorld 1.6 reference assemblies, Harmony, and .NET Framework reference assemblies:
 
 ```powershell
 dotnet build "Source/SmartAIFramework/SmartAIFramework.csproj" -c Release
 ```
 
----
+To compile against a local game installation, pass its managed assembly directory:
 
-## Support & License
+```powershell
+dotnet build "Source/SmartAIFramework/SmartAIFramework.csproj" -c Release -p:RimWorldManaged="E:/SteamLibrary/steamapps/common/RimWorld/RimWorldWin64_Data/Managed"
+```
 
-* ☕ **[Support on Ko-fi](https://ko-fi.com/tawitsy)**
-* Licensed under the [MIT License](LICENSE).
+**The build writes to `1.6/Assemblies` and copies the DLL to `1.7/Assemblies`.** Build in a separate checkout if the installed mod is in use. Harmony is supplied at runtime by the Harmony mod; do not bundle `0Harmony.dll` with RSF.
+
+## Documentation, support, and license
+
+The [GitHub Wiki](https://github.com/Tawitsy/Rim-Smart-Framework/wiki) contains additional guides: [Features](https://github.com/Tawitsy/Rim-Smart-Framework/wiki/Features), [Compatibility](https://github.com/Tawitsy/Rim-Smart-Framework/wiki/Compatibility), and [Modder API](https://github.com/Tawitsy/Rim-Smart-Framework/wiki/Modder-API).
+
+Wiki languages: [English](https://github.com/Tawitsy/Rim-Smart-Framework/wiki) · [ไทย](https://github.com/Tawitsy/Rim-Smart-Framework/wiki/Home-TH) · [简体中文](https://github.com/Tawitsy/Rim-Smart-Framework/wiki/Home-ZH) · [日本語](https://github.com/Tawitsy/Rim-Smart-Framework/wiki/Home-JA) · [한국어](https://github.com/Tawitsy/Rim-Smart-Framework/wiki/Home-KO) · [Русский](https://github.com/Tawitsy/Rim-Smart-Framework/wiki/Home-RU). Non-English pages include AI-translated drafts; corrections are welcome.
+
+Created by **Tawitsy**. Licensed under the [MIT License](LICENSE). If the mod helps your colony, you can support development on [Ko-fi](https://ko-fi.com/tawitsy).

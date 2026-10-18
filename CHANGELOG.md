@@ -52,7 +52,6 @@ Measured in-game with 110 colonists and a 90-raider raid: the mod's own time is 
 ### RimWorld 1.7 (unstable branch)
 - The same build runs on 1.7; all patches apply and every test passes.
 - When you first start 1.7 with a 1.6 config, the game resets your mod list to Core. Re-enable your mods.
-- DLCs are not available on the 1.7 unstable branch yet, so DLC-specific content could not be tested there.
 
 ### Known limitations
 - A colonist may still choose a wander destination inside a firing zone; the route there avoids the zone where it can.
