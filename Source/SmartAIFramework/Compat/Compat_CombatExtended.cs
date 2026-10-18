@@ -82,7 +82,7 @@ namespace SmartAIFramework.Patches
                 return;
             if (!LineOfSightUtility.HasFriendlyAlongSegment(map, pawn, root, targetCell))
                 return;
-            if (!CombatUtility.TryFindSidestepCell(pawn, targetCell, out IntVec3 sidestep))
+            if (!CombatUtility.TryFindSidestepCell(pawn, targetCell, range, out IntVec3 sidestep))
                 return;
 
             state.nextSidestepTick = now + 75;
@@ -94,7 +94,7 @@ namespace SmartAIFramework.Patches
                 score = 65f,
                 jobDef = JobDefOf.Goto,
                 target = sidestep,
-                jobExpiryTicks = 35,
+                jobExpiryTicks = CombatUtility.SidestepTicks(pawn.Position, sidestep),
                 actuation = Actuation.Interrupt,
                 validUntilTick = now + 60,
                 commitTicks = 35,

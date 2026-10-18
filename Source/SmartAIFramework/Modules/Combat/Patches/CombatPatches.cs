@@ -238,6 +238,31 @@ namespace SmartAIFramework.Patches
     }
 
     [HarmonyPatchCategory("Combat")]
+    [HarmonyPatch(typeof(JobGiver_ConfigurableHostilityResponse), "TryGiveJob")]
+    public static class Patch_ConfigurableHostilityResponse_TryGiveJob
+    {
+        public static bool Prefix(Pawn pawn, ref Job __result)
+        {
+            if (pawn == null || pawn.Drafted || PawnStateTracker.ObserveOnly)
+                return true;
+            Job current = pawn.CurJob;
+            if (current == null || current.def != JobDefOf.Goto)
+                return true;
+            PawnTacticalState state = PawnStateTracker.TryGet(pawn);
+            if (state == null || state.lastIssuedJobId != current.loadID || state.lastIssuedBehaviorId == null)
+                return true;
+            if (state.lastIssuedBehaviorId == BehaviorIds.ThreatWait || (int)state.lastIssuedTier > (int)DecisionTier.Tactical)
+                return true;
+            if (current.expiryInterval > 0 && current.startTick >= 0 && Find.TickManager.TicksGame - current.startTick >= current.expiryInterval)
+                return true;
+            if (PawnUtility.PlayerForcedJobNowOrSoon(pawn))
+                return true;
+            __result = null;
+            return false;
+        }
+    }
+
+    [HarmonyPatchCategory("Combat")]
     [HarmonyPatch(typeof(CompExplosive), nameof(CompExplosive.StopWick))]
     public static class Patch_CompExplosive_StopWick
     {

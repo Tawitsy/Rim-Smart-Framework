@@ -115,7 +115,7 @@ namespace SmartAIFramework.Combat
             {
                 PawnTacticalState state = PawnStateTracker.GetOrCreate(shooter);
                 int now = PawnStateTracker.Now;
-                if (now >= state.nextSidestepTick && TryFindSidestepCell(shooter, target.Cell, out IntVec3 sidestep))
+                if (now >= state.nextSidestepTick && TryFindSidestepCell(shooter, target.Cell, verb.EffectiveRange, out IntVec3 sidestep))
                 {
                     state.nextSidestepTick = now + 75;
 
@@ -127,10 +127,10 @@ namespace SmartAIFramework.Combat
                         score = 65f,
                         jobDef = JobDefOf.Goto,
                         target = sidestep,
-                        jobExpiryTicks = 35,
+                        jobExpiryTicks = SidestepTicks(shooter.Position, sidestep),
                         actuation = Actuation.Interrupt,
                         validUntilTick = now + 60,
-                        commitTicks = 35,
+                        commitTicks = SidestepTicks(shooter.Position, sidestep),
                         reason = "friendly in line of fire",
                         allowBusyStance = true,
                         deferFlush = true
@@ -141,7 +141,14 @@ namespace SmartAIFramework.Combat
             return false;
         }
 
-        public static bool TryFindSidestepCell(Pawn shooter, IntVec3 targetCell, out IntVec3 bestCell)
+        public const float SidestepRadius = 3f;
+
+        public static int SidestepTicks(IntVec3 from, IntVec3 to)
+        {
+            return Mathf.Max(35, Mathf.CeilToInt((to - from).LengthHorizontal) * 20 + 15);
+        }
+
+        public static bool TryFindSidestepCell(Pawn shooter, IntVec3 targetCell, float range, out IntVec3 bestCell)
         {
             bestCell = IntVec3.Invalid;
             Map map = shooter?.Map;
@@ -149,21 +156,35 @@ namespace SmartAIFramework.Combat
 
             IntVec3 origin = shooter.Position;
             float currentDanger = UtilityEvaluator.GetDangerAt(map, origin, shooter);
+            TacticalGrid grid = TacticalGrid.Get(map);
+            District myDistrict = shooter.GetDistrict();
+            float rangeSq = range * range;
 
-            for (int i = 0; i < 8; i++)
+            int cellCount = GenRadial.NumCellsInRadius(SidestepRadius);
+            IntVec3[] pattern = GenRadial.RadialPattern;
+
+            for (int i = 1; i < cellCount; i++)
             {
-                IntVec3 c = origin + GenAdj.AdjacentCells[i];
+                IntVec3 c = origin + pattern[i];
                 if (!c.InBounds(map) || !c.Standable(map) || c.ContainsTrap(map) || c.GetFirstPawn(map) != null)
+                    continue;
+                if (myDistrict != null && c.GetDistrict(map) != myDistrict)
+                    continue;
+                if (range > 0f && c.DistanceToSquared(targetCell) > rangeSq)
+                    continue;
+                if (grid != null && grid.FriendlyFiringLaneAt(c) > 0)
                     continue;
                 if (UtilityEvaluator.GetDangerAt(map, c, shooter) > currentDanger)
                     continue;
                 if (!GenSight.LineOfSight(c, targetCell, map, skipFirstCell: true))
                     continue;
-                if (!LineOfSightUtility.HasFriendlyAlongSegment(map, shooter, c, targetCell))
-                {
-                    bestCell = c;
-                    return true;
-                }
+                if (LineOfSightUtility.HasFriendlyAlongSegment(map, shooter, c, targetCell))
+                    continue;
+                if (!shooter.CanReach(c, PathEndMode.OnCell, Danger.Some))
+                    continue;
+
+                bestCell = c;
+                return true;
             }
 
             return false;

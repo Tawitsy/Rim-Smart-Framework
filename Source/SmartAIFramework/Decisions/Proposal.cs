@@ -53,7 +53,12 @@ namespace SmartAIFramework.Decisions
                 job.checkOverrideOnExpire = true;
             }
             if (pawn != null)
-                PawnStateTracker.GetOrCreate(pawn).lastIssuedJobId = job.loadID;
+            {
+                PawnTacticalState state = PawnStateTracker.GetOrCreate(pawn);
+                state.lastIssuedJobId = job.loadID;
+                state.lastIssuedBehaviorId = behaviorId;
+                state.lastIssuedTier = tier;
+            }
             return job;
         }
     }

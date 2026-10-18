@@ -50,6 +50,8 @@ namespace SmartAIFramework.Data
         public Proposal pendingProposal;
 
         public int lastIssuedJobId = -1;
+        public string lastIssuedBehaviorId;
+        public DecisionTier lastIssuedTier = DecisionTier.Routine;
 
         public int committedUntilTick;
         public DecisionTier committedTier = DecisionTier.Routine;

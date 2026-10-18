@@ -254,7 +254,10 @@ namespace SmartAIFramework.Decisions
                 Job wait = JobMaker.MakeJob(JobDefOf.Wait_Wander);
                 wait.expiryInterval = ThreatWaitTicks;
                 wait.checkOverrideOnExpire = true;
-                PawnStateTracker.GetOrCreate(pawn).lastIssuedJobId = wait.loadID;
+                PawnTacticalState waitState = PawnStateTracker.GetOrCreate(pawn);
+                waitState.lastIssuedJobId = wait.loadID;
+                waitState.lastIssuedBehaviorId = BehaviorIds.ThreatWait;
+                waitState.lastIssuedTier = DecisionTier.Routine;
                 ReleaseDiscarded(pawn, discarded, result);
                 DecisionLog.Record(pawn, BehaviorIds.ThreatWait, DecisionTier.Survival, 0f, DecisionOutcome.Vetoed, ThreatWaitReason);
                 result = new ThinkResult(wait, result.SourceNode, result.Tag, fromQueue: false);
