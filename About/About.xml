@@ -3,7 +3,7 @@
   <name>Rim Smart Framework</name>
   <author>Tawitsy</author>
   <packageId>Tawitsy.RimSmartFramework</packageId>
-  <modVersion>1.2.0</modVersion>
+  <modVersion>1.3.0</modVersion>
   <supportedVersions>
     <li>1.6</li>
     <li>1.7</li>
@@ -20,8 +20,8 @@
     <li>brrainz.harmony</li>
     <li>Ludeon.RimWorld</li>
   </loadAfter>
-  <description>[b]Version:[/b] 1.2.0
-[b]Status:[/b] Beta - stability release (for RimWorld 1.6 &amp; 1.7)
+  <description>[b]Version:[/b] 1.3.0
+[b]Status:[/b] For RimWorld 1.6 and 1.7 (1.7 tested on the unstable branch)
 
 A lightweight collection of behavioral tweaks to make pawns act with a little more common sense.
 
@@ -34,6 +34,9 @@ Pawns in vanilla RimWorld often make decisions that feel frustrating: stepping r
 • [b]Tactical Fallback for Ranged:[/b] Snipers and riflemen step back 2–4 tiles toward cover when rushed by melee enemies instead of standing still taking hits.
 • [b]Muzzle Discipline:[/b] Moving pawns avoid stepping directly in front of aiming allies, routing behind them instead.
 • [b]Smart Flee &amp; Cover:[/b] Colonists set to Flee (the default) flee as soon as a shooter can hit them, even from long range, and do not walk back into its reach for work, food or wandering while it keeps shooting. Colonists set to Attack take cover, hold or kite instead.
+• [b]Route Around Firing Zones:[/b] When a reasonable detour exists, colonists walk around the area an active shooter can hit instead of straight through it. Drafted colonists and your direct orders take the normal path.
+• [b]Explosive Awareness:[/b] Colonists get clear of a lit explosive's real blast, including large ones, and ignore explosions that cannot hurt them.
+• [b]Turret &amp; Mortar Discipline (optional):[/b] Your turrets and mortars can hold fire when a colonist is in the line or the blast. Off by default; a target you aim by hand always fires.
 • [b]Combat Extended Compatible:[/b] Full dynamic integration with Combat Extended weapons and firing logic.
 
 [b]Work &amp; Survival[/b]
@@ -43,6 +46,11 @@ Pawns in vanilla RimWorld often make decisions that feel frustrating: stepping r
 • [b]Smart Meal Choice (FIFO):[/b] Pawns prefer eating meals that are closer to spoiling first rather than grabbing the freshest batch.
 • [b]Pre-Trip Preparation:[/b] Before setting off on long treks across the map, pawns will take care of hunger or rest if needed.
 • [b]Opportunistic Hauling:[/b] Pawns walking across the base can pick up nearby items that belong near their destination.
+• [b]No Chores in the Line of Fire:[/b] Hauling, sowing, building, cleaning and other routine work is not picked inside an active shooter's reach. Real danger only: fire, explosions, firing lanes, toxic fallout that can hurt that pawn, or temperatures outside the safe range.
+
+[b]Mind[/b]
+• [b]Tantrums Spare Explosives:[/b] Colonists in a tantrum no longer smash explosives or the storage that holds them.
+• [b]Choose Which Mental Breaks Can Happen:[/b] Uncheck any Major or Extreme break (including modded ones) and your colonists will get another break of the same strength instead.
 
 [b]Base &amp; Structures[/b]
 • [b]Door Discipline:[/b] Completely blocks item placement and drops on door tiles across the map, keeping security and freezer doors functional.
@@ -52,10 +60,11 @@ Pawns in vanilla RimWorld often make decisions that feel frustrating: stepping r
 • [b]Predator Alert:[/b] Colonists notice when a wild predator targets them for hunting, sounding an alarm and retreating toward safety instead of working oblivious.
 
 [b]Performance &amp; Mod Options[/b]
-• 100% event-driven: no per-tick polling or map scans. Measured with 110 colonists plus a 90-raider raid: about 0.16 ms per tick of mod time during normal work and about 0.3-0.5 ms during the raid.
+• 100% event-driven: no per-tick polling or map scans. Measured with 110 colonists plus a 90-raider raid: about 0.12 ms per tick of mod time during normal work and about 0.13-0.21 ms during the raid (about 1% of the tick).
+• [b]Compatibility Detection:[/b] Recognises 26 popular mods (Combat Extended, Common Sense, While You're Up, Dubs Bad Hygiene, CAI 5000 and more) and adapts; Mod Settings shows what was detected and what the mod does about it.
 • One decision center: every change the mod makes to a pawn's job goes through a single arbiter with a fixed priority order (player orders &gt; game emergencies &gt; survival &gt; basic needs &gt; tactics &gt; routine work), so features never fight each other.
 • Player orders always win; drafted pawns are never overridden.
-• Modules (Combat, Survival, Work, Structure) can be switched off in Mod Settings; a disabled module patches nothing (restart required).
+• Modules (Combat, Survival, Work, Structure, Mind) can be switched off in Mod Settings; a disabled module patches nothing (restart required).
 • Safe to add to existing saves.
 • Every feature can be individually toggled or customized in Mod Settings to fit your playstyle.
 

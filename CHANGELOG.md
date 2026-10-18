@@ -1,27 +1,66 @@
 # Changelog
 
-## v1.2.1 (unreleased)
+## v1.3.0
 
-### Fixed
-- Colonists no longer get stuck believing a spot is safe (or dangerous) after a wall is built or destroyed, or after an enemy stops being a threat: the mod rechecks within a second.
-- The mod now tracks where a shooter is standing right now, not where it stood a few steps ago.
-- A room is now judged by several points, so a room that is only visible along one side is no longer treated as safe.
-- Hauling into storage that sits inside a shooter's range is now caught too, not only picking things up there.
-- Colonists no longer keep re-picking the same job inside a shooter's range. They wait a moment and decide again, and the job is no longer blocked for colonists set to Attack.
-- The mod tracks up to 128 shooters at once (was 64), which matters in very large raids.
-- Colonists who are very hungry or exhausted are now allowed to go eat or sleep in every situation, not just some of them.
-
-### Known limitations
-- A shooter's reach is a bounded estimate (8-40 cells, line of sight only), and paths that cross a firing zone are not yet avoided.
-
-## v1.3.0 (unreleased)
+Colonists now avoid firing zones on the way, not only at the destination, and the mod recognises popular mods it runs alongside. Tested on RimWorld 1.6 and the 1.7 unstable branch.
 
 ### Added
+- **Colonists route around firing zones.** When a reasonable detour exists, undrafted colonists walk around the area an active shooter can hit instead of straight through it. Drafted colonists and anything you order directly take the normal path.
+- **Cell work stays out of firing zones.** Sowing, roofing, floors, clearing snow, fishing and the other jobs that target a cell are no longer picked inside a shooter's reach (they already were for jobs that target an item or building).
+- **Compatibility detection.** The mod recognises 26 popular mods and adapts. Mod Settings shows a "Detected mods" section and the log lists them at startup.
+  - While You're Up / Jobs of Opportunity: the mod's on-route hauling is switched off and left to them (a setting keeps ours instead).
+  - Dubs Bad Hygiene: a desperate bladder or thirst lets a colonist leave shelter, like hunger does.
+  - Common Sense, Combat Extended and Perspective Shift keep their existing adapters.
+- **Turret and mortar discipline (option, off by default).** Your turrets and mortars hold fire when a colonist is in the line or the blast. A target you aim by hand always fires.
 - **Mind module** (can be switched off in Mod Settings, restart required).
-- **Tantrums spare explosives.** Colonists in a tantrum no longer smash explosives (shells, chemfuel, IEDs, modded explosives) or shelves and other storage that hold them. Can be turned off.
-- **Choose which mental breaks can happen.** Mod Settings lists every Major and Extreme mental break, including ones added by other mods. Uncheck a break and your colonists will not get it: the game picks another break of the same strength, or a milder one if none is left. Applies to your colonists only; everything is allowed by default.
-- **Advanced settings (Dev mode only).** With Dev mode on, Mod Settings shows an "Advanced" section to tune the danger system: how long a shooter is remembered, the minimum and maximum shooter reach, how often room danger is rechecked, how long colonists wait instead of working inside a shooter's reach (at most 2 seconds), and how many heavy evaluations run per tick. A "Reset" button restores the tested defaults.
+  - **Tantrums spare explosives.** Colonists in a tantrum no longer smash explosives (shells, chemfuel, IEDs, modded explosives) or shelves and other storage that hold them. Can be turned off.
+  - **Choose which mental breaks can happen.** Mod Settings lists every Major and Extreme mental break, including ones added by other mods. Uncheck a break and your colonists will not get it: the game picks another break of the same strength, or a milder one if none is left. Applies to your colonists only; everything is allowed by default.
+- **Advanced settings (Dev mode only).** Tune the danger system: how long a shooter is remembered, the minimum and maximum shooter reach, how often room danger is rechecked, how long colonists wait instead of working inside a shooter's reach (at most 2 seconds), heavy evaluations per tick, and the extra path cost of a firing zone (0 turns the detours off). A "Reset" button restores the tested defaults.
 - **Threat overlay (Dev mode only).** Draws each shooter the mod is tracking as a ring on the map: red while it is a threat, gray once it is not.
+
+### Fixed
+- **Your orders come first, everywhere.**
+  - A hauling detour is never inserted in front of fleeing, getting out of the heat or cold, a job you ordered, or a move the mod issued.
+  - Early rescue never picks up a colonist you are controlling (drafted, given an order, an order queued with Shift, or your Perspective Shift avatar), including when you take over while the rescuer is still on the way.
+- **Explosions.**
+  - Explosions that cannot hurt a colonist (firefoam, or blocked by a wall) no longer make them run.
+  - A colonist carrying a patient is not made to drop them to flee.
+  - Large blasts (e.g. antigrain) now get a real exit outside the blast, with enough time to walk there.
+  - A bleeding colonist keeps running from an explosive instead of stopping to tend wounds inside the blast.
+  - A second explosive makes a fleeing colonist re-plan; small rooms where the game's own 9-cell flee finds no exit now get one.
+- **Toxic fallout** only keeps colonists inside if it can actually hurt them: toxic resistance and immunity count.
+- **Rain is no longer treated as danger.** Cleaning filth outdoors that the rain is already washing away is skipped instead (not in observe-only mode).
+- Colonists no longer get stuck believing a spot is safe (or dangerous) after a wall is built or destroyed, or after an enemy stops being a threat: the mod rechecks within a second.
+- The mod tracks where a shooter is standing right now, not where it stood a few steps ago.
+- A room is judged by several points, so a room that is only visible along one side is no longer treated as safe.
+- Hauling into storage that sits inside a shooter's range is caught too, not only picking things up there.
+- Colonists no longer keep re-picking the same job inside a shooter's range. They wait a moment and decide again, and the job is no longer blocked for colonists set to Attack.
+- The mod tracks up to 128 shooters at once (was 64), which matters in very large raids.
+- Colonists who are very hungry or exhausted are allowed to go eat or sleep in every situation.
+- The Mod Settings window no longer collapses to its title when many mods are detected.
+- The mental break list shows each break's real name.
+
+### Performance
+Measured in-game with 110 colonists and a 90-raider raid: the mod's own time is about 0.12 ms per tick during normal work and about 0.13-0.21 ms per tick during the raid (about 1% of the tick).
+
+### Tested
+- 62 automated in-game tests, all passing on RimWorld 1.6 and on the 1.7 unstable branch.
+- Colony soaks: two 3-day runs (40 colonists, 12 raids, 26 fires, 70 injury rounds, 12 predators each) and a 1-day run with raids back to back. No errors from this mod, no pawns stuck, no flip-flopping, memory stays flat.
+- A 117-mod list including Combat Extended, Humanoid Alien Races, Vanilla Expanded Framework, Vehicle Framework, Pick Up and Haul, Perspective Shift, Common Sense, Dubs Bad Hygiene and Hospitality.
+- A popular-mod list without Combat Extended: CAI 5000, Yayo's Combat 3, While You're Up, Smart Medicine, Simple Sidearms, Achtung!, Work Tab, Allow Tool, Replace Stuff, RimHUD, Numbers, Better Pawn Control, Colony Groups and Better Workbench Management.
+
+### RimWorld 1.7 (unstable branch)
+- The same build runs on 1.7; all patches apply and every test passes.
+- When you first start 1.7 with a 1.6 config, the game resets your mod list to Core. Re-enable your mods.
+- DLCs are not available on the 1.7 unstable branch yet, so DLC-specific content could not be tested there.
+
+### Known limitations
+- A colonist may still choose a wander destination inside a firing zone; the route there avoids the zone where it can.
+- A shooter's reach is a bounded estimate (8-40 cells, line of sight only), and pawns do not respect fog-of-war visibility.
+- A shooter can reach up to 40 cells while the game's flee goes about 23 cells, so a colonist may flee in more than one step.
+- Not tested yet: Save Our Ship 2, fog-of-war mods.
+
+If something goes wrong, please report it with your Player.log and, if you can, the output of "Explain pawn decisions" for the pawn involved.
 
 ## v1.2.0 (beta) - stability release
 
