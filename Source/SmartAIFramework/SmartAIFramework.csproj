@@ -13,7 +13,7 @@
     <AssemblyVersion>1.1.2.0</AssemblyVersion>
     <FileVersion>1.1.2.0</FileVersion>
     <!-- Path to RimWorld's managed DLLs. Override with: dotnet build -p:RimWorldManaged=... -->
-    <RimWorldManaged Condition="'$(RimWorldManaged)' == ''">..\..\..\..\RimWorldWin64_Data\Managed</RimWorldManaged>
+    <UseLocalManaged Condition="'$(RimWorldManaged)' != '' And Exists('$(RimWorldManaged)\Assembly-CSharp.dll')">true</UseLocalManaged>
   </PropertyGroup>
 
   <ItemGroup>
@@ -22,7 +22,12 @@
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
   </ItemGroup>
 
-  <ItemGroup>
+  <ItemGroup Condition="'$(UseLocalManaged)' != 'true'">
+    <!-- Compile-time reference assemblies only; nothing from this package is copied to the output -->
+    <PackageReference Include="Krafs.Rimworld.Ref" Version="1.6.4871" PrivateAssets="all" ExcludeAssets="runtime" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(UseLocalManaged)' == 'true'">
     <Reference Include="Assembly-CSharp">
       <HintPath>$(RimWorldManaged)\Assembly-CSharp.dll</HintPath>
       <Private>false</Private>
