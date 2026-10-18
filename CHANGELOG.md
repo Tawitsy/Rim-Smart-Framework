@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.3.1
+
+- Improved combat movement and sidestepping, including Combat Extended support.
+
 ## v1.3.0
 
 Colonists now avoid firing zones on the way, not only at the destination, and the mod recognises popular mods it runs alongside. Tested on RimWorld 1.6 and the 1.7 unstable branch.

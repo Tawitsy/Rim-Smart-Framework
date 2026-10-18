@@ -1,6 +1,6 @@
 # Rim Smart Framework
 
-[![Version](https://img.shields.io/badge/version-v1.3.0-blue.svg)](https://github.com/Tawitsy/Rim-Smart-Framework/releases)
+[![Version](https://img.shields.io/badge/version-v1.3.1-blue.svg)](https://github.com/Tawitsy/Rim-Smart-Framework/releases)
 [![RimWorld](https://img.shields.io/badge/RimWorld-1.6%20%7C%201.7-brightgreen.svg)](#installation)
 [![Harmony](https://img.shields.io/badge/Requires-Harmony-blue.svg)](https://github.com/pardeike/HarmonyRimWorld)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
@@ -14,7 +14,7 @@ The framework shares danger information with vanilla decisions and coordinates i
 
 ![Rim Smart Framework preview](About/Preview.png)
 
-**Current version: 1.3.0.** Tested on RimWorld **1.6** and the **1.7 unstable branch**. See the [changelog](CHANGELOG.md) for release details and test coverage.
+**Current version: 1.3.1.** Tested on RimWorld **1.6** and the **1.7 unstable branch**. See the [changelog](CHANGELOG.md) for release details and test coverage.
 
 [Download](https://github.com/Tawitsy/Rim-Smart-Framework/releases) · [Features](#what-it-does) · [Installation](#installation) · [Compatibility](#mod-compatibility) · [Report a bug](#bug-reports) · [Developer reference](#for-developers)
 
